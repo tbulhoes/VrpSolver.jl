@@ -1,0 +1,52 @@
+# If you want to use VRPSolver script to run this batch, comment lines for the docker call (starting with /CVRP/data) and uncomment lines below the VRPSolver script call (starting with data/).
+# docker call requires all paths being container paths (e.g. /CVRP/data/A/A-n37-k5.vrp -m 5 -M 5 -u 670 -o /CVRP/sol/A-n37-k5.sol)
+# VRPSolver script call requires that the paths (e.g. data/A/A-n37-k5.vrp -m 5 -M 5 -u 670 -o sol/A-n37-k5.sol) be relatives to the application directory
+# Tip: after a batch execution, call 'grep statistics out/A.out -h | cut -c13-' to get the results as rows for a LaTeX table.
+
+# docker run --rm -v /ABSOLUTE_PATH_TO_CVRP_APP:/CVRP bapdock /CVRP/src/run.jl -b /CVRP/A.batch &> out/A.out 
+/CVRP/data/A/A-n37-k5.vrp -m 5 -M 5 -u 670
+/CVRP/data/A/A-n37-k6.vrp -m 6 -M 6 -u 950
+/CVRP/data/A/A-n38-k5.vrp -m 5 -M 5 -u 731
+/CVRP/data/A/A-n39-k5.vrp -m 5 -M 5 -u 823
+/CVRP/data/A/A-n39-k6.vrp -m 6 -M 6 -u 832
+/CVRP/data/A/A-n44-k6.vrp -m 6 -M 6 -u 938
+/CVRP/data/A/A-n45-k6.vrp -m 6 -M 6 -u 945
+/CVRP/data/A/A-n45-k7.vrp -m 7 -M 7 -u 1147
+/CVRP/data/A/A-n46-k7.vrp -m 7 -M 7 -u 915
+/CVRP/data/A/A-n48-k7.vrp -m 7 -M 7 -u 1074
+/CVRP/data/A/A-n53-k7.vrp -m 7 -M 7 -u 1011
+/CVRP/data/A/A-n54-k7.vrp -m 7 -M 7 -u 1168
+/CVRP/data/A/A-n55-k9.vrp -m 9 -M 9 -u 1074
+/CVRP/data/A/A-n61-k9.vrp -m 9 -M 9 -u 1035
+/CVRP/data/A/A-n60-k9.vrp -m 9 -M 9 -u 1355
+/CVRP/data/A/A-n62-k8.vrp -m 8 -M 8 -u 1291
+/CVRP/data/A/A-n63-k9.vrp -m 9 -M 9 -u 1617
+/CVRP/data/A/A-n63-k10.vrp -m 10 -M 10 -u 1316
+/CVRP/data/A/A-n64-k9.vrp -m 9 -M 9 -u 1403
+/CVRP/data/A/A-n65-k9.vrp -m 9 -M 9 -u 1175
+/CVRP/data/A/A-n69-k9.vrp -m 9 -M 9 -u 1160
+/CVRP/data/A/A-n80-k10.vrp -m 10 -M 10 -u 1764
+
+# ./VRPSolver -b A.batch &> out/A.out 
+#data/A/A-n37-k5.vrp -m 5 -M 5 -u 670
+#data/A/A-n37-k6.vrp -m 6 -M 6 -u 950
+#data/A/A-n38-k5.vrp -m 5 -M 5 -u 731
+#data/A/A-n39-k5.vrp -m 5 -M 5 -u 823
+#data/A/A-n39-k6.vrp -m 6 -M 6 -u 832
+#data/A/A-n44-k6.vrp -m 6 -M 6 -u 938
+#data/A/A-n45-k6.vrp -m 6 -M 6 -u 945
+#data/A/A-n45-k7.vrp -m 7 -M 7 -u 1147
+#data/A/A-n46-k7.vrp -m 7 -M 7 -u 915
+#data/A/A-n48-k7.vrp -m 7 -M 7 -u 1074
+#data/A/A-n53-k7.vrp -m 7 -M 7 -u 1011
+#data/A/A-n54-k7.vrp -m 7 -M 7 -u 1168
+#data/A/A-n55-k9.vrp -m 9 -M 9 -u 1074
+#data/A/A-n61-k9.vrp -m 9 -M 9 -u 1035
+#data/A/A-n60-k9.vrp -m 9 -M 9 -u 1355
+#data/A/A-n62-k8.vrp -m 8 -M 8 -u 1291
+#data/A/A-n63-k9.vrp -m 9 -M 9 -u 1617
+#data/A/A-n63-k10.vrp -m 10 -M 10 -u 1316
+#data/A/A-n64-k9.vrp -m 9 -M 9 -u 1403
+#data/A/A-n65-k9.vrp -m 9 -M 9 -u 1175
+#data/A/A-n69-k9.vrp -m 9 -M 9 -u 1160
+#data/A/A-n80-k10.vrp -m 10 -M 10 -u 1764

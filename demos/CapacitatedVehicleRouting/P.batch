@@ -1,0 +1,54 @@
+# If you want to use VRPSolver script to run this batch, comment lines for the docker call (starting with /CVRP/data) and uncomment lines below the VRPSolver script call (starting with data/).
+# docker call requires all paths being container paths (e.g. /CVRP/data/P/P-n19-k2.vrp -m 2 -M 2 -u 213 -o /CVRP/sol/P-n19-k2.sol)
+# VRPSolver script call requires that the paths (e.g. data/P/P-n19-k2.vrp -m 2 -M 2 -u 213 -o sol/P-n19-k2.sol) be relatives to the application directory
+# Tip: after a batch execution, call 'grep statistics out/P.out -h | cut -c13-' to get the results as rows for a LaTeX table.
+
+# docker run --rm -v /ABSOLUTE_PATH_TO_CVRP_APP:/CVRP bapdock /CVRP/src/run.jl -b /CVRP/P.batch &> out/P.out 
+/CVRP/data/P/P-n19-k2.vrp -m 2 -M 2 -u 213
+/CVRP/data/P/P-n20-k2.vrp -m 2 -M 2 -u 217
+/CVRP/data/P/P-n21-k2.vrp -m 2 -M 2 -u 212
+/CVRP/data/P/P-n22-k2.vrp -m 2 -M 2 -u 217
+/CVRP/data/P/P-n22-k8.vrp -m 8 -M 8 -u 604
+/CVRP/data/P/P-n23-k8.vrp -m 8 -M 8 -u 530
+/CVRP/data/P/P-n40-k5.vrp -m 5 -M 5 -u 459
+/CVRP/data/P/P-n45-k5.vrp -m 5 -M 5 -u 511
+/CVRP/data/P/P-n50-k10.vrp -m 10 -M 10 -u 697
+/CVRP/data/P/P-n50-k7.vrp -m 7 -M 7 -u 555
+/CVRP/data/P/P-n50-k8.vrp -m 8 -M 8 -u 632
+/CVRP/data/P/P-n51-k10.vrp -m 10 -M 10 -u 742
+/CVRP/data/P/P-n55-k10.vrp -m 10 -M 10 -u 700
+/CVRP/data/P/P-n55-k15.vrp -m 15 -M 15 -u 994
+/CVRP/data/P/P-n55-k7.vrp -m 7 -M 7 -u 569
+/CVRP/data/P/P-n55-k8.vrp -m 8 -M 8 -u 589
+/CVRP/data/P/P-n60-k10.vrp -m 10 -M 10 -u 757
+/CVRP/data/P/P-n60-k15.vrp -m 15 -M 15 -u 1034
+/CVRP/data/P/P-n65-k10.vrp -m 10 -M 10 -u 793
+/CVRP/data/P/P-n70-k10.vrp -m 10 -M 10 -u 835
+/CVRP/data/P/P-n76-k4.vrp -m 4 -M 4 -u 594
+/CVRP/data/P/P-n76-k5.vrp -m 5 -M 5 -u 628
+/CVRP/data/P/P-n101-k4.vrp -m 4 -M 4 -u 682
+
+# ./VRPSolver -b P.batch &> out/P.out 
+#data/P/P-n19-k2.vrp -m 2 -M 2 -u 213
+#data/P/P-n20-k2.vrp -m 2 -M 2 -u 217
+#data/P/P-n21-k2.vrp -m 2 -M 2 -u 212
+#data/P/P-n22-k2.vrp -m 2 -M 2 -u 217
+#data/P/P-n22-k8.vrp -m 8 -M 8 -u 604
+#data/P/P-n23-k8.vrp -m 8 -M 8 -u 530
+#data/P/P-n40-k5.vrp -m 5 -M 5 -u 459
+#data/P/P-n45-k5.vrp -m 5 -M 5 -u 511
+#data/P/P-n50-k10.vrp -m 10 -M 10 -u 697
+#data/P/P-n50-k7.vrp -m 7 -M 7 -u 555
+#data/P/P-n50-k8.vrp -m 8 -M 8 -u 632
+#data/P/P-n51-k10.vrp -m 10 -M 10 -u 742
+#data/P/P-n55-k10.vrp -m 10 -M 10 -u 700
+#data/P/P-n55-k15.vrp -m 15 -M 15 -u 994
+#data/P/P-n55-k7.vrp -m 7 -M 7 -u 569
+#data/P/P-n55-k8.vrp -m 8 -M 8 -u 589
+#data/P/P-n60-k10.vrp -m 10 -M 10 -u 757
+#data/P/P-n60-k15.vrp -m 15 -M 15 -u 1034
+#data/P/P-n65-k10.vrp -m 10 -M 10 -u 793
+#data/P/P-n70-k10.vrp -m 10 -M 10 -u 835
+#data/P/P-n76-k4.vrp -m 4 -M 4 -u 594
+#data/P/P-n76-k5.vrp -m 5 -M 5 -u 628
+#data/P/P-n101-k4.vrp -m 4 -M 4 -u 682

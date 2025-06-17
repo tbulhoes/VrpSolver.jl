@@ -1,0 +1,14 @@
+# If you want to use VRPSolver script to run this batch, comment lines for the docker call (starting with /CVRP/data) and uncomment lines below the VRPSolver script call (starting with data/).
+# docker call requires all paths being container paths (e.g. /CVRP/data/F/F-n45-k4.vrp -m 4 -M 4 -u 725 -o /CVRP/sol/F-n45-k4.sol)
+# VRPSolver script call requires that the paths (e.g. data/F/F-n45-k4.vrp -m 4 -M 4 -u 725 -o sol/F-n45-k4.sol) be relatives to the application directory
+# Tip: after a batch execution, call 'grep statistics out/F.out -h | cut -c13-' to get the results as rows for a LaTeX table.
+
+# docker run --rm -v /ABSOLUTE_PATH_TO_CVRP_APP:/CVRP bapdock /CVRP/src/run.jl -b /CVRP/F.batch &> out/F.out 
+/CVRP/data/F/F-n45-k4.vrp -m 4 -M 4 -u 725
+/CVRP/data/F/F-n72-k4.vrp -m 4 -M 4 -u 238
+/CVRP/data/F/F-n135-k7.vrp -m 7 -M 7 -u 1163
+
+# ./VRPSolver -b F.batch &> out/F.out 
+#data/F/F-n45-k4.vrp -m 4 -M 4 -u 725
+#data/F/F-n72-k4.vrp -m 4 -M 4 -u 238
+#data/F/F-n135-k7.vrp -m 7 -M 7 -u 1163
