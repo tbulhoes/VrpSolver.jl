@@ -1,0 +1,128 @@
+# If you want to use VRPSolver script to run this batch, comment lines for the docker call (starting with /TOP/data) and uncomment lines below the VRPSolver script call (starting with data/).
+# docker call requires all paths being container paths (e.g. /TOP/data/p4.2.a.txt --cfg /TOP/config/TOP.cfg)
+# VRPSolver script call requires that the paths (e.g. data/p4.2.a.txt --cfg config/TOP.cfg) be relatives to the application directory
+# Tip: after a batch execution, call 'grep statistics out/chao.out -h | cut -c13-' to get the results as rows for a LaTeX table.
+
+# docker run --rm -v /ABSOLUTE_PATH_TO_TOP_APP:/TOP bapdock /TOP/src/run.jl -b /TOP/chao.batch &> out/chao.out 
+/TOP/data/p4.2.a.txt --cfg /TOP/config/TOP.cfg
+/TOP/data/p4.2.b.txt --cfg /TOP/config/TOP.cfg
+/TOP/data/p4.2.c.txt --cfg /TOP/config/TOP.cfg
+/TOP/data/p4.2.d.txt --cfg /TOP/config/TOP.cfg
+/TOP/data/p4.2.e.txt --cfg /TOP/config/TOP.cfg
+/TOP/data/p4.2.f.txt --cfg /TOP/config/TOP.cfg
+/TOP/data/p4.2.g.txt --cfg /TOP/config/TOP.cfg
+/TOP/data/p4.2.h.txt --cfg /TOP/config/TOP.cfg
+/TOP/data/p4.2.i.txt --cfg /TOP/config/TOP.cfg
+/TOP/data/p4.2.j.txt --cfg /TOP/config/TOP.cfg
+/TOP/data/p4.2.k.txt --cfg /TOP/config/TOP.cfg
+/TOP/data/p4.2.l.txt --cfg /TOP/config/TOP.cfg
+/TOP/data/p4.2.m.txt --cfg /TOP/config/TOP.cfg
+/TOP/data/p4.2.n.txt --cfg /TOP/config/TOP.cfg
+/TOP/data/p4.2.o.txt --cfg /TOP/config/TOP.cfg
+/TOP/data/p4.2.p.txt --cfg /TOP/config/TOP.cfg
+/TOP/data/p4.2.q.txt --cfg /TOP/config/TOP.cfg
+/TOP/data/p4.2.r.txt --cfg /TOP/config/TOP.cfg
+/TOP/data/p4.2.s.txt --cfg /TOP/config/TOP.cfg
+/TOP/data/p4.2.t.txt --cfg /TOP/config/TOP.cfg
+/TOP/data/p4.3.a.txt --cfg /TOP/config/TOP.cfg
+/TOP/data/p4.3.b.txt --cfg /TOP/config/TOP.cfg
+/TOP/data/p4.3.c.txt --cfg /TOP/config/TOP.cfg
+/TOP/data/p4.3.d.txt --cfg /TOP/config/TOP.cfg
+/TOP/data/p4.3.e.txt --cfg /TOP/config/TOP.cfg
+/TOP/data/p4.3.f.txt --cfg /TOP/config/TOP.cfg
+/TOP/data/p4.3.g.txt --cfg /TOP/config/TOP.cfg
+/TOP/data/p4.3.h.txt --cfg /TOP/config/TOP.cfg
+/TOP/data/p4.3.i.txt --cfg /TOP/config/TOP.cfg
+/TOP/data/p4.3.j.txt --cfg /TOP/config/TOP.cfg
+/TOP/data/p4.3.k.txt --cfg /TOP/config/TOP.cfg
+/TOP/data/p4.3.l.txt --cfg /TOP/config/TOP.cfg
+/TOP/data/p4.3.m.txt --cfg /TOP/config/TOP.cfg
+/TOP/data/p4.3.n.txt --cfg /TOP/config/TOP.cfg
+/TOP/data/p4.3.o.txt --cfg /TOP/config/TOP.cfg
+/TOP/data/p4.3.p.txt --cfg /TOP/config/TOP.cfg
+/TOP/data/p4.3.q.txt --cfg /TOP/config/TOP.cfg
+/TOP/data/p4.3.r.txt --cfg /TOP/config/TOP.cfg
+/TOP/data/p4.3.s.txt --cfg /TOP/config/TOP.cfg
+/TOP/data/p4.3.t.txt --cfg /TOP/config/TOP.cfg
+/TOP/data/p4.4.a.txt --cfg /TOP/config/TOP.cfg
+/TOP/data/p4.4.b.txt --cfg /TOP/config/TOP.cfg
+/TOP/data/p4.4.c.txt --cfg /TOP/config/TOP.cfg
+/TOP/data/p4.4.d.txt --cfg /TOP/config/TOP.cfg
+/TOP/data/p4.4.e.txt --cfg /TOP/config/TOP.cfg
+/TOP/data/p4.4.f.txt --cfg /TOP/config/TOP.cfg
+/TOP/data/p4.4.g.txt --cfg /TOP/config/TOP.cfg
+/TOP/data/p4.4.h.txt --cfg /TOP/config/TOP.cfg
+/TOP/data/p4.4.i.txt --cfg /TOP/config/TOP.cfg
+/TOP/data/p4.4.j.txt --cfg /TOP/config/TOP.cfg
+/TOP/data/p4.4.k.txt --cfg /TOP/config/TOP.cfg
+/TOP/data/p4.4.l.txt --cfg /TOP/config/TOP.cfg
+/TOP/data/p4.4.m.txt --cfg /TOP/config/TOP.cfg
+/TOP/data/p4.4.n.txt --cfg /TOP/config/TOP.cfg
+/TOP/data/p4.4.o.txt --cfg /TOP/config/TOP.cfg
+/TOP/data/p4.4.p.txt --cfg /TOP/config/TOP.cfg
+/TOP/data/p4.4.q.txt --cfg /TOP/config/TOP.cfg
+/TOP/data/p4.4.r.txt --cfg /TOP/config/TOP.cfg
+/TOP/data/p4.4.s.txt --cfg /TOP/config/TOP.cfg
+/TOP/data/p4.4.t.txt --cfg /TOP/config/TOP.cfg
+
+# ./VRPSolver -b chao.batch &> out/chao.out
+# data/p4.2.a.txt --cfg config/TOP.cfg
+# data/p4.2.b.txt --cfg config/TOP.cfg
+# data/p4.2.c.txt --cfg config/TOP.cfg
+# data/p4.2.d.txt --cfg config/TOP.cfg
+# data/p4.2.e.txt --cfg config/TOP.cfg
+# data/p4.2.f.txt --cfg config/TOP.cfg
+# data/p4.2.g.txt --cfg config/TOP.cfg
+# data/p4.2.h.txt --cfg config/TOP.cfg
+# data/p4.2.i.txt --cfg config/TOP.cfg
+# data/p4.2.j.txt --cfg config/TOP.cfg
+# data/p4.2.k.txt --cfg config/TOP.cfg
+# data/p4.2.l.txt --cfg config/TOP.cfg
+# data/p4.2.m.txt --cfg config/TOP.cfg
+# data/p4.2.n.txt --cfg config/TOP.cfg
+# data/p4.2.o.txt --cfg config/TOP.cfg
+# data/p4.2.p.txt --cfg config/TOP.cfg
+# data/p4.2.q.txt --cfg config/TOP.cfg
+# data/p4.2.r.txt --cfg config/TOP.cfg
+# data/p4.2.s.txt --cfg config/TOP.cfg
+# data/p4.2.t.txt --cfg config/TOP.cfg
+# data/p4.3.a.txt --cfg config/TOP.cfg
+# data/p4.3.b.txt --cfg config/TOP.cfg
+# data/p4.3.c.txt --cfg config/TOP.cfg
+# data/p4.3.d.txt --cfg config/TOP.cfg
+# data/p4.3.e.txt --cfg config/TOP.cfg
+# data/p4.3.f.txt --cfg config/TOP.cfg
+# data/p4.3.g.txt --cfg config/TOP.cfg
+# data/p4.3.h.txt --cfg config/TOP.cfg
+# data/p4.3.i.txt --cfg config/TOP.cfg
+# data/p4.3.j.txt --cfg config/TOP.cfg
+# data/p4.3.k.txt --cfg config/TOP.cfg
+# data/p4.3.l.txt --cfg config/TOP.cfg
+# data/p4.3.m.txt --cfg config/TOP.cfg
+# data/p4.3.n.txt --cfg config/TOP.cfg
+# data/p4.3.o.txt --cfg config/TOP.cfg
+# data/p4.3.p.txt --cfg config/TOP.cfg
+# data/p4.3.q.txt --cfg config/TOP.cfg
+# data/p4.3.r.txt --cfg config/TOP.cfg
+# data/p4.3.s.txt --cfg config/TOP.cfg
+# data/p4.3.t.txt --cfg config/TOP.cfg
+# data/p4.4.a.txt --cfg config/TOP.cfg
+# data/p4.4.b.txt --cfg config/TOP.cfg
+# data/p4.4.c.txt --cfg config/TOP.cfg
+# data/p4.4.d.txt --cfg config/TOP.cfg
+# data/p4.4.e.txt --cfg config/TOP.cfg
+# data/p4.4.f.txt --cfg config/TOP.cfg
+# data/p4.4.g.txt --cfg config/TOP.cfg
+# data/p4.4.h.txt --cfg config/TOP.cfg
+# data/p4.4.i.txt --cfg config/TOP.cfg
+# data/p4.4.j.txt --cfg config/TOP.cfg
+# data/p4.4.k.txt --cfg config/TOP.cfg
+# data/p4.4.l.txt --cfg config/TOP.cfg
+# data/p4.4.m.txt --cfg config/TOP.cfg
+# data/p4.4.n.txt --cfg config/TOP.cfg
+# data/p4.4.o.txt --cfg config/TOP.cfg
+# data/p4.4.p.txt --cfg config/TOP.cfg
+# data/p4.4.q.txt --cfg config/TOP.cfg
+# data/p4.4.r.txt --cfg config/TOP.cfg
+# data/p4.4.s.txt --cfg config/TOP.cfg
+# data/p4.4.t.txt --cfg config/TOP.cfg

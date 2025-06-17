@@ -129,12 +129,14 @@ function register_var!(
         mptr, name, Cint(column_id), sp_type, sp_mid, var_mid)
 end
 
-function init_vars!(mptr::Ptr{Cvoid}, l::Vector{Cdouble}, u::Vector{Cdouble}, c::Vector{Cdouble})
+function init_vars!(mptr::Ptr{Cvoid}, l::Vector{Cdouble}, u::Vector{Cdouble}, c::Vector{Cdouble}, t::Vector{Cchar})
     @bcm_ccall("initVars", Cvoid, (Ptr{Cvoid}, Ptr{Cdouble}, Ptr{Cdouble}, Ptr{Cdouble}),
         mptr, l, u, c)
+    @bcm_ccall("setVarType", Cint, (Ptr{Cvoid}, Ptr{Cchar}, Cint),
+        mptr, t, Cint(length(t)))
 end
 
-function c_register_vars(mptr::Ptr{Cvoid}, lbs::Vector{Float64}, ubs::Vector{Float64}, costs::Vector{Float64}, vars_decomposition)
+function c_register_vars(mptr::Ptr{Cvoid}, lbs::Vector{Float64}, ubs::Vector{Float64}, costs::Vector{Float64}, cols_types::Vector{Char}, vars_decomposition)
     var_bcid = Array{Cint,1}(undef, 8)
     sp_bcid = Array{Cint,1}(undef, 8)
 
@@ -145,7 +147,7 @@ function c_register_vars(mptr::Ptr{Cvoid}, lbs::Vector{Float64}, ubs::Vector{Flo
         # Register the variable
         register_var!(mptr, name, column_id - 1, sptype_to_int(sp_type), sp_bcid, var_bcid)
     end
-    init_vars!(mptr, [Cdouble(lb) for lb in lbs], [Cdouble(ub) for ub in ubs], [Cdouble(cost) for cost in costs])
+    init_vars!(mptr, [Cdouble(lb) for lb in lbs], [Cdouble(ub) for ub in ubs], [Cdouble(cost) for cost in costs], [Cchar(t) for t in cols_types])
 end
 
 function init_cstrs!(
@@ -434,7 +436,6 @@ function wbcr_set_elementarity_sets_distance_matrix(c_net::Ptr{Cvoid}, matrix::A
         end
     end
     cdouble_matrix = [[Cdouble(i) for i in row] for row in matrix]
-    @show "oi"
     @bcr_ccall("setElemSetsDistanceMatrix", Cint, (Ptr{Cvoid}, Ptr{Ptr{Cdouble}}, Cint),
         c_net, cdouble_matrix, Cint(nb_es))
 end

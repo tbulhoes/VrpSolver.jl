@@ -2,5 +2,5 @@
 
 digraph master_0_BaP_Tree {
 edge[fontname = "Courier", fontsize = 10];
-n1 [label="N_1 (0.42s) \nBOUND [603.00]"];
+n1 [label="N_1 (0.39s) \nBOUND [-62.00]"];
 }

@@ -142,13 +142,14 @@ end
 
 struct OptimizerColsInfo
    uservar_to_colids::Dict{JuMP.VariableRef,Array{Int}}
-   uservar_to_type::Dict{JuMP.VariableRef,Symbol}
+   uservar_to_problem_type::Dict{JuMP.VariableRef,Symbol}
    cols_uservar::Vector{JuMP.VariableRef}
    cols_names::Vector{String}
    cols_problems::Vector{Tuple{Symbol,Int}}
    cols_lbs::Vector{Float64}
    cols_ubs::Vector{Float64}
    cols_costs::Vector{Float64}
+   cols_types::Vector{Char}
 end
 
 mutable struct VrpOptimizer
@@ -164,9 +165,10 @@ mutable struct VrpOptimizer
    ignored_container_names::Vector{String}
    stats::Dict{} # execution statistics
    baptreedot_file::String
+   optimizer_cols_info::OptimizerColsInfo
 end
 
-contains(p, s) = findnext(s, p, 1) != nothing
+contains(p, s) = !isnothing(findnext(s, p, 1))
 
 function check_id(id::Int, min_id::Int, max_id::Int)
    (id < min_id || id > max_id) && error("Unknown id $id.")
@@ -1425,13 +1427,14 @@ function extract_optimizer_cols_info(user_model::VrpModel)
    user_form = user_model.formulation
    mapped_names = get_mapped_containers_names(user_model)
    uservar_to_colids = Dict{JuMP.VariableRef,Array{Int}}()
-   uservar_to_type = Dict{JuMP.VariableRef,Symbol}()
+   uservar_to_problem_type = Dict{JuMP.VariableRef,Symbol}()
    cols_uservar = JuMP.VariableRef[]
    cols_names = String[]
    cols_problems = Tuple{Symbol,Int}[]
    cols_lbs = Float64[]
    cols_ubs = Float64[]
    cols_costs = Float64[]
+   cols_types = Char[]
 
    nextcolid = 0
    user_vars = all_variables(user_form)
@@ -1447,7 +1450,12 @@ function extract_optimizer_cols_info(user_model::VrpModel)
             push!(cols_names, name(user_var))
             push!(cols_uservar, user_var)
             push!(cols_costs, get(objective_function(user_form).terms, user_var, 0.0))
-            uservar_to_type[user_var] = :DW_MASTER
+            push!(cols_types, if is_integer(user_var)
+               'I'
+            else
+               'C'
+            end)
+            uservar_to_problem_type[user_var] = :DW_MASTER
             nextcolid += 1
          end
       else
@@ -1459,15 +1467,20 @@ function extract_optimizer_cols_info(user_model::VrpModel)
             push!(cols_ubs, Inf)
             push!(cols_uservar, user_var)
             push!(cols_costs, get(objective_function(user_form).terms, user_var, 0.0))
-            uservar_to_type[user_var] = :DW_SP
+            push!(cols_types, if is_integer(user_var)
+               'I'
+            else
+               'C'
+            end)
             nextcolid += 1
          end
+         uservar_to_problem_type[user_var] = :DW_SP
       end
       if !isempty(colsids)
          uservar_to_colids[user_var] = colsids
       end
    end
-   return OptimizerColsInfo(uservar_to_colids, uservar_to_type, cols_uservar, cols_names, cols_problems, cols_lbs, cols_ubs, cols_costs)
+   return OptimizerColsInfo(uservar_to_colids, uservar_to_problem_type, cols_uservar, cols_names, cols_problems, cols_lbs, cols_ubs, cols_costs, cols_types)
 end
 
 function build_optimizer_vars_and_constrs(user_model::VrpModel, bapcod_model_ptr, optimizer_cols_info::OptimizerColsInfo)
@@ -1486,7 +1499,7 @@ function build_optimizer_vars_and_constrs(user_model::VrpModel, bapcod_model_ptr
          push!(optimizer_vars, (Symbol(optimizer_cols_info.cols_names[colid+1]), colid, optimizer_cols_info.cols_problems[colid+1]...))
       end
    end
-   c_register_vars(bapcod_model_ptr, optimizer_cols_info.cols_lbs, optimizer_cols_info.cols_ubs, optimizer_cols_info.cols_costs, optimizer_vars)
+   c_register_vars(bapcod_model_ptr, optimizer_cols_info.cols_lbs, optimizer_cols_info.cols_ubs, optimizer_cols_info.cols_costs, optimizer_cols_info.cols_types, optimizer_vars)
 
    constr_idx = 0
    clbs = Float64[]
@@ -1551,7 +1564,7 @@ function has_integer_objective(user_model::VrpModel, optimizer_cols_info::Optimi
          return false
       end
       # checking if unmapped variables are integer
-      if optimizer_cols_info.uservar_to_type[user_var] == :DW_MASTER && !is_integer(user_var)
+      if optimizer_cols_info.uservar_to_problem_type[user_var] == :DW_MASTER && !is_integer(user_var)
          return false
       end
    end
@@ -1747,7 +1760,7 @@ function VrpOptimizer(user_model::VrpModel, param_file::String, instance_name=""
       Dict{String,CallbackInfo}(),
       Dict{JuMP.VariableRef,Float64}[],
       integer_objective, -1,
-      mapped_names, ignored_names, Dict(), baptreedot)
+      mapped_names, ignored_names, Dict(), baptreedot, optimizer_cols_info)
    user_model.optimizer = optimizer
 
    # CHECK

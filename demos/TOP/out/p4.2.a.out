@@ -1,0 +1,68 @@
+Application parameters:
+  batch  =>  nothing
+  instance  =>  "/IN/p4.2.a.txt"
+  ub  =>  1.0e7
+  cfg  =>  "/CFG/TOP.cfg"
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+VRPSolver beta v0.11, 1/06/2019. Web: vrpsolver.math.u-bordeaux.fr
+Corresponds to the solver by Pessoa, Sadykov, Uchoa and Vanderbeck (2019)
+Paper: dx.doi.org/10.1007/978-3-030-17953-3_27
+USE THIS CODE ONLY FOR ACADEMIC PURPOSES AT YOUR OWN RISK
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+BaPCod v042, 18/09/2019, © Inria Bordeaux, France (license expires 1/02/2021)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+VRPSolver parameters:
+GlobalTimeLimit = 36000
+MaxNbOfBBtreeNodeTreated = 100000
+treeSearchStrategy = 1
+RCSPstopCutGenTimeThresholdInPricing = 5
+RCSPhardTimeThresholdInPricing = 10
+RCSPnumberOfBucketsPerVertex = 200
+RCSPdynamicBucketSteps = 1
+RCSPuseBidirectionalSearch = 1
+RCSPapplyReducedCostFixing = 1
+RCSPmaxNumOfColsPerIteration = 30
+RCSPmaxNumOfColsPerExactIteration = 150
+RCSPheurLabelingStrategy = 0
+StabilizationMinPhaseOfStage = 0
+RCSPmaxNumOfLabelsInEnumeration = 500000
+RCSPmaxNumOfEnumeratedSolutions = 2500000
+RCSPmaxNumOfEnumSolutionsForMIP = 10000
+RCSPinitNGneighbourhoodSize = 8
+RCSPmaxNGneighbourhoodSize = 8
+RCSPrankOneCutsMaxNumPerRound = 100
+RCSPrankOneCutsMaxNumRows = 5
+RCSPrankOneCutsMemoryType = 1
+CutTailingOffThreshold = 0.02
+CutTailingOffCounterThreshold = 2
+SafeDualBoundScaleFactor = -1
+StrongBranchingPhaseOneCandidatesNumber = 50
+StrongBranchingPhaseOneTreeSizeEstimRatio = 1
+StrongBranchingPhaseTwoCandidatesNumber = 3
+StrongBranchingPhaseTwoTreeSizeEstimRatio = 0.1
+MaxTimeForRestrictedMasterIpHeur = 1
+DivingHeurUseDepthLimit = 0
+MaxLDSbreadth = 1
+MaxLDSdepth = 10000
+New model incumbent solution 1e+07, TIME = 0h0m0s2t = 2
+Model is built TIME = 0h0m2s5t = 205
+************************************************************************************************
+**** BaB tree root node
+**** Local DB = -1e+12, global bounds : [ -1e+12 , 1e+07 ], TIME = 0h0m2s36t = 236
+**** 1 open nodes, 0 columns (0 active), 0 dyn. constrs. (0 active), 198 art. vars. (198 active)
+************************************************************************************************
+<DWph=2> <it=  7> <et=2.51> <Mt= 0.00> <Spt= 0.09> <nCl=105> <DB= -206.0000> <Mlp= -206.0000> <PB=-206> 
+<DWph=1> <it=  9> <et=2.56> <Mt= 0.00> <Spt= 0.03> <nCl=  1> <DB= -206.0000> <Mlp= -206.0000> <PB=-206> 
+<DWph=0> <it= 10> <et=2.62> <Mt= 0.00> <Spt= 0.04> <nCl=  0> <DB= -206.0000> <Mlp= -206.0000> <PB=-206> 
+ColGenEvalAlg final dual bound: -206 (rounded: -206)
+New model incumbent solution -206, TIME = 0h0m2s63t = 263
+************************************************************************************************
+Search is finished, global bounds : [ -206 , -206 ], TIME = 0h0m2s63t = 263
+************************************************************************************************
+[32mBaPCod : solution defined.[00m
+statistics: p4.2.a & 1 & 1.0e7 & -206.00 & 2.63 & 1 & -206.00 & -206 & 2.63 \\
+########################################################
+Route #1: 14 52 55 78 24 
+Route #2: 96 23 7 34 76 
+Cost -206.0
+########################################################
