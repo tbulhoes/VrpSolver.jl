@@ -1,0 +1,14 @@
+name = "VrpSolver"
+uuid = "74f9703e-84bc-48c1-adfc-4da7b8ffac08"
+authors = ["Teobaldo Bulhões <tbulhoes@ci.ufpb.br>"]
+version = "0.1.0"
+
+[deps]
+CPLEX = "a076750e-1247-5638-91d2-ce28b192dca0"
+JuMP = "4076af6c-e467-56ae-b986-b466b2749572"
+MathOptInterface = "b8f27783-ece8-5eb3-8dc8-9495eed66fee"
+
+[compat]
+CPLEX = "1.1.1"
+JuMP = "1.26.0"
+MathOptInterface = "1.41.0"
