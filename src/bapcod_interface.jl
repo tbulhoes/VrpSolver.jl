@@ -225,19 +225,6 @@ function c_add_elemset_resource_cons_branching(
         modelptr, Cdouble(priority))
 end
 
-function wbcr_new(
-    c_model::Ptr{Cvoid},
-    sp_bctype::Integer,
-    sp_bcid::Vector{Cint},
-    nb_nodes::Integer,
-    nb_es::Integer,
-    nb_ps::Integer,
-    nb_cs::Integer,
-)
-    ptr = @bcr_ccall("new", Ptr{Cvoid}, (Ptr{Cvoid}, Cint, Ptr{Int}, Cint, Cint, Cint, Cint),
-        c_model, Cint(sp_bctype), sp_bcid, Cint(nb_nodes), Cint(nb_es), Cint(nb_ps), Cint(nb_cs))
-end
-
 function set_var_priority_in_master!(
     modelptr::Ptr{Cvoid},
     varname::Symbol,
