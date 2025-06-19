@@ -41,7 +41,7 @@ function run_top(app)
    optimizer = VrpOptimizer(model, app["cfg"], instance_name)
    set_cutoff!(optimizer, app["ub"])
 
-   (status, solution_found) = VrpSolver.optimize!(optimizer)
+   (status, solution_found) = optimize!(optimizer)
 
    println("########################################################")
    if solution_found # Is there a solution?
