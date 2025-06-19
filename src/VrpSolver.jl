@@ -1,7 +1,7 @@
 module VrpSolver
 
 using JuMP
-import MathOptInterface
+using MathOptInterface: MathOptInterface
 const MOI = MathOptInterface
 
 import Base.show
@@ -10,193 +10,193 @@ include("bapcod_interface.jl")
 
 export VrpModel, VrpGraph, VrpOptimizer
 export add_resource!,
-   set_resource_bounds!,
-   add_elem_set_to_vertex_init_ng_neighbourhood!,
-   add_arc!,
-   add_arc_var_mapping!,
-   set_arc_consumption!,
-   set_arc_resource_bounds!,
-   get_arc_consumption,
-   add_elem_set_to_arc_init_ng_neighbourhood!,
-   get_arc_set,
-   set_arc_packing_sets!,
-   set_vertex_packing_sets!,
-   set_additional_arc_elementarity_sets!,
-   set_additional_vertex_elementarity_sets!,
-   add_graph!,
-   define_elementarity_sets_distance_matrix!,
-   add_capacity_cut_separator!,
-   add_strongkpath_cut_separator!,
-   set_branching_priority!,
-   enable_rank1_cuts!,
-   disable_rank1_cuts!,
-   enable_resource_consumption_branching!,
-   enable_packset_ryanfoster_branching!,
-   set_cutoff!,
-   get_objective_value,
-   get_value,
-   get_values,
-   get_number_of_positive_paths,
-   get_path_arcs,
-   add_cut_callback!,
-   add_dynamic_constr!,
-   show,
-   get_complete_formulation,
-   print_enum_paths,
-   add_permanent_ryanfoster_constraint!
+    set_resource_bounds!,
+    add_elem_set_to_vertex_init_ng_neighbourhood!,
+    add_arc!,
+    add_arc_var_mapping!,
+    set_arc_consumption!,
+    set_arc_resource_bounds!,
+    get_arc_consumption,
+    add_elem_set_to_arc_init_ng_neighbourhood!,
+    get_arc_set,
+    set_arc_packing_sets!,
+    set_vertex_packing_sets!,
+    set_additional_arc_elementarity_sets!,
+    set_additional_vertex_elementarity_sets!,
+    add_graph!,
+    define_elementarity_sets_distance_matrix!,
+    add_capacity_cut_separator!,
+    add_strongkpath_cut_separator!,
+    set_branching_priority!,
+    enable_rank1_cuts!,
+    disable_rank1_cuts!,
+    enable_resource_consumption_branching!,
+    enable_packset_ryanfoster_branching!,
+    set_cutoff!,
+    get_objective_value,
+    get_value,
+    get_values,
+    get_number_of_positive_paths,
+    get_path_arcs,
+    add_cut_callback!,
+    add_dynamic_constr!,
+    show,
+    get_complete_formulation,
+    print_enum_paths,
+    add_permanent_ryanfoster_constraint!
 
 @enum SetType NoSet = 0 ArcSet = 1 VertexSet = 2
 
 mutable struct VrpVertex
-   user_id::Int
-   id::Int
-   packing_set::Int
-   elem_set::Int
-   res_bounds::Dict{Int,Tuple{Float64,Float64}} #only for binary resources
-   ng_set::Array{Int}
+    user_id::Int
+    id::Int
+    packing_set::Int
+    elem_set::Int
+    res_bounds::Dict{Int,Tuple{Float64,Float64}} #only for binary resources
+    ng_set::Array{Int}
 end
 
 mutable struct VrpArc
-   id::Int
-   tail::Int
-   head::Int
-   packing_set::Int
-   elem_set::Int
-   res_consumption::Array{Float64}
-   res_bounds::Dict{Int,Tuple{Float64,Float64}} #only for non-binary resources
-   vars::Array{Tuple{JuMP.VariableRef,Float64}}
-   ng_set::Array{Int}
+    id::Int
+    tail::Int
+    head::Int
+    packing_set::Int
+    elem_set::Int
+    res_consumption::Array{Float64}
+    res_bounds::Dict{Int,Tuple{Float64,Float64}} #only for non-binary resources
+    vars::Array{Tuple{JuMP.VariableRef,Float64}}
+    ng_set::Array{Int}
 end
 
 mutable struct VrpResource
-   id::Int
-   is_main::Bool
-   is_binary::Bool
-   is_disposable::Bool
-   is_automatic::Bool
-   step_size::Float64
+    id::Int
+    is_main::Bool
+    is_binary::Bool
+    is_disposable::Bool
+    is_automatic::Bool
+    step_size::Float64
 end
 
 mutable struct VrpGraph
-   id::Int
-   source_id::Int
-   sink_id::Int
-   vertices::Vector{VrpVertex}
-   arcs::Vector{VrpArc}
-   arc_id_to_arc::Dict{Int,VrpArc}
-   incoming_arcs::Vector{Vector{VrpArc}}
-   resources::Array{VrpResource}
-   multiplicity::Tuple{Int,Int}
-   user_vertex_id_map::Dict{Int,Int}
-   cycle_problem::Bool # true when source=sink for the user (vertices[sink_id] is only an internal vertex)
-   res_bounds_vertex::Dict{Tuple{Int,Int},Tuple{Float64,Float64}} # stores all intervals defined by the user on vertices
-   res_bounds_arc::Dict{Tuple{Int,Int},Tuple{Float64,Float64}} # stores all intervals defined by the user on arcs
-   arc_bapcod_id_to_id::Dict{Int,Int}
-   net
-   es_dist_matrix
-   elem_sets::Array{Array{Int,1},1}
+    id::Int
+    source_id::Int
+    sink_id::Int
+    vertices::Vector{VrpVertex}
+    arcs::Vector{VrpArc}
+    arc_id_to_arc::Dict{Int,VrpArc}
+    incoming_arcs::Vector{Vector{VrpArc}}
+    resources::Array{VrpResource}
+    multiplicity::Tuple{Int,Int}
+    user_vertex_id_map::Dict{Int,Int}
+    cycle_problem::Bool # true when source=sink for the user (vertices[sink_id] is only an internal vertex)
+    res_bounds_vertex::Dict{Tuple{Int,Int},Tuple{Float64,Float64}} # stores all intervals defined by the user on vertices
+    res_bounds_arc::Dict{Tuple{Int,Int},Tuple{Float64,Float64}} # stores all intervals defined by the user on arcs
+    arc_bapcod_id_to_id::Dict{Int,Int}
+    net
+    es_dist_matrix
+    elem_sets::Array{Array{Int,1},1}
 end
 
 mutable struct CapacityCutInfo
-   demands::Array{Tuple{Array{Tuple{VrpGraph,Int},1},Float64},1}
-   capacity::Float64
-   two_path_cuts_res_id::Int
+    demands::Array{Tuple{Array{Tuple{VrpGraph,Int},1},Float64},1}
+    capacity::Float64
+    two_path_cuts_res_id::Int
 end
 
 mutable struct VrpModel
-   formulation::JuMP.Model
-   graphs::Array{VrpGraph}
-   packing_sets::Array{Array{Tuple{VrpGraph,Int},1},1}
-   packing_sets_type::SetType
-   elem_sets_type::SetType
-   define_covering_sets::Bool
-   branching_priorities::Dict{String,Int}
-   branching_exp_families::Array{Any}
-   branching_exps::Array{Any}
-   use_rank1_cuts::Bool
-   optimizer::Any
-   callbacks::Dict{String,Any}
-   cap_cuts_info::Array{CapacityCutInfo}
-   strongkpath_cuts_info::Array{CapacityCutInfo}
-   arcs_by_packing_set_pairs::Array{Array{Tuple{VrpGraph,VrpArc}},2}
-   ryanfoster_constraints::Vector{Tuple{Integer,Integer,Bool}} # (firstPackSetId,secondPackSetId,together)
-   save_standalone::String
+    formulation::JuMP.Model
+    graphs::Array{VrpGraph}
+    packing_sets::Array{Array{Tuple{VrpGraph,Int},1},1}
+    packing_sets_type::SetType
+    elem_sets_type::SetType
+    define_covering_sets::Bool
+    branching_priorities::Dict{String,Int}
+    branching_exp_families::Array{Any}
+    branching_exps::Array{Any}
+    use_rank1_cuts::Bool
+    optimizer::Any
+    callbacks::Dict{String,Any}
+    cap_cuts_info::Array{CapacityCutInfo}
+    strongkpath_cuts_info::Array{CapacityCutInfo}
+    arcs_by_packing_set_pairs::Array{Array{Tuple{VrpGraph,VrpArc}},2}
+    ryanfoster_constraints::Vector{Tuple{Integer,Integer,Bool}} # (firstPackSetId,secondPackSetId,together)
+    save_standalone::String
 end
 
 mutable struct DynamicConstrInfo
-   vars::Array{Any}
-   coeffs::Array{Float64}
-   sense::Any
-   rhs::Float64
+    vars::Array{Any}
+    coeffs::Array{Float64}
+    sense::Any
+    rhs::Float64
 end
 
 mutable struct CallbackInfo
-   constr_name::String
-   sep_function::Any
-   aux_function::Any
-   to_add_constrs::Array{DynamicConstrInfo}
-   nb_added_constrs::Int
-   cb_idx::Int
+    constr_name::String
+    sep_function::Any
+    aux_function::Any
+    to_add_constrs::Array{DynamicConstrInfo}
+    nb_added_constrs::Int
+    cb_idx::Int
 end
 
 struct OptimizerColsInfo
-   uservar_to_colids::Dict{JuMP.VariableRef,Array{Int}}
-   uservar_to_problem_type::Dict{JuMP.VariableRef,Symbol}
-   cols_uservar::Vector{JuMP.VariableRef}
-   cols_names::Vector{String}
-   cols_problems::Vector{Tuple{Symbol,Int}}
-   cols_lbs::Vector{Float64}
-   cols_ubs::Vector{Float64}
-   cols_costs::Vector{Float64}
-   cols_types::Vector{Char}
+    uservar_to_colids::Dict{JuMP.VariableRef,Array{Int}}
+    uservar_to_problem_type::Dict{JuMP.VariableRef,Symbol}
+    cols_uservar::Vector{JuMP.VariableRef}
+    cols_names::Vector{String}
+    cols_problems::Vector{Tuple{Symbol,Int}}
+    cols_lbs::Vector{Float64}
+    cols_ubs::Vector{Float64}
+    cols_costs::Vector{Float64}
+    cols_types::Vector{Char}
 end
 
 struct SpSol
-   graph_id::Int
-   multiplicity::Int
-   user_vars_in_sol::Dict{JuMP.VariableRef,Float64}
-   arc_seq::Vector{VrpArc}
+    graph_id::Int
+    multiplicity::Int
+    user_vars_in_sol::Dict{JuMP.VariableRef,Float64}
+    arc_seq::Vector{VrpArc}
 end
 
 mutable struct VrpOptimizer
-   user_model::VrpModel
-   bapcod_model
-   param_file::String
-   instance_name::String
-   callbacks::Dict{String,CallbackInfo}
-   spsols_in_sol::Vector{SpSol}
-   unmapped_vars_in_sol::Dict{JuMP.VariableRef,Float64}
-   integer_objective::Bool
-   initUB::Float64
-   mapped_container_names::Vector{String}
-   ignored_container_names::Vector{String}
-   stats::Dict{} # execution statistics
-   baptreedot_file::String
-   optimizer_cols_info::OptimizerColsInfo
+    user_model::VrpModel
+    bapcod_model
+    param_file::String
+    instance_name::String
+    callbacks::Dict{String,CallbackInfo}
+    spsols_in_sol::Vector{SpSol}
+    unmapped_vars_in_sol::Dict{JuMP.VariableRef,Float64}
+    integer_objective::Bool
+    initUB::Float64
+    mapped_container_names::Vector{String}
+    ignored_container_names::Vector{String}
+    stats::Dict{} # execution statistics
+    baptreedot_file::String
+    optimizer_cols_info::OptimizerColsInfo
 end
 
 contains(p, s) = !isnothing(findnext(s, p, 1))
 
 function check_id(id::Int, min_id::Int, max_id::Int)
-   (id < min_id || id > max_id) && error("Unknown id $id.")
+    (id < min_id || id > max_id) && error("Unknown id $id.")
 end
 
 function check_vertex_id(graph::VrpGraph, id::Int)
-   !(id in keys(graph.user_vertex_id_map)) && error("Unknown vertex id $id.")
+    !(id in keys(graph.user_vertex_id_map)) && error("Unknown vertex id $id.")
 end
 
 function resource_id_in_bapcod(res::VrpResource, graph::VrpGraph)
-   if !res.is_binary
-      return res.id
-   end
-   b_id = 1
-   for res2 in graph.resources
-      if res2.id == res.id
-         return b_id
-      elseif res2.is_binary
-         b_id += 1
-      end
-   end
+    if !res.is_binary
+        return res.id
+    end
+    b_id = 1
+    for res2 in graph.resources
+        if res2.id == res.id
+            return b_id
+        elseif res2.is_binary
+            b_id += 1
+        end
+    end
 end
 
 """
@@ -207,12 +207,26 @@ Create an empty VRPSolver model.
 It is the main object of the VRPSolver. It is responsible to keep the RCSP graphs (of type VrpGraph), formulation, packing sets, rounded capacity cuts and other definitions (like branching).
 
 """
-function VrpModel(; save_standalone="")
-   VrpModel(Model(), VrpGraph[],
-      Array{Tuple{VrpGraph,Int},1}[], NoSet, NoSet, false,
-      Dict{String,Int}(), Any[], Any[], true,
-      nothing, Dict{String,Any}(), CapacityCutInfo[], CapacityCutInfo[], Array{Array{Tuple{VrpGraph,VrpArc}},2}(undef, 0, 0),
-      Vector{Tuple{Integer,Integer,Bool}}(), save_standalone)
+function VrpModel(; save_standalone = "")
+    VrpModel(
+        Model(),
+        VrpGraph[],
+        Array{Tuple{VrpGraph,Int},1}[],
+        NoSet,
+        NoSet,
+        false,
+        Dict{String,Int}(),
+        Any[],
+        Any[],
+        true,
+        nothing,
+        Dict{String,Any}(),
+        CapacityCutInfo[],
+        CapacityCutInfo[],
+        Array{Array{Tuple{VrpGraph,VrpArc}},2}(undef, 0, 0),
+        Vector{Tuple{Integer,Integer,Bool}}(),
+        save_standalone,
+    )
 end
 
 """
@@ -226,11 +240,11 @@ These cuts are potentially very strong, but each added cut can make the pricing 
 
 """
 function enable_rank1_cuts!(model::VrpModel)
-   model.use_rank1_cuts = true
+    model.use_rank1_cuts = true
 end
 
 function disable_rank1_cuts!(model::VrpModel)
-   model.use_rank1_cuts = false
+    model.use_rank1_cuts = false
 end
 
 """
@@ -261,29 +275,57 @@ graph1 = VrpGraph(model, [1,2,3,4,5], 1, 5, (0,2)) # paths must start at 1 and e
 graph2 = VrpGraph(model, [1,2,3,4,5], 1, 1, (0,2)) # another graph whose paths must start and end at 1 (cycles)
 ```
 """
-function VrpGraph(model::VrpModel, nodes::Array{Int}, source::Int, sink::Int, multiplicity::Tuple{Int,Int})
+function VrpGraph(
+    model::VrpModel, nodes::Array{Int}, source::Int, sink::Int, multiplicity::Tuple{Int,Int}
+)
+    vertices = [
+        VrpVertex(nodes[i], i, -1, -1, Dict{Float64,Float64}(), Int[]) for
+        i in 1:length(nodes)
+    ]
+    user_vertex_id_map = Dict{Int,Int}()
+    for i in 1:length(nodes)
+        user_vertex_id_map[nodes[i]] = i
+    end
 
-   vertices = [VrpVertex(nodes[i], i, -1, -1, Dict{Float64,Float64}(), Int[]) for i in 1:length(nodes)]
-   user_vertex_id_map = Dict{Int,Int}()
-   for i in 1:length(nodes)
-      user_vertex_id_map[nodes[i]] = i
-   end
+    network_source, network_sink = user_vertex_id_map[source], user_vertex_id_map[sink]
 
-   network_source, network_sink = user_vertex_id_map[source], user_vertex_id_map[sink]
+    cycle_problem = false
+    if source == sink # create a sink node internally?
+        network_sink = length(nodes) + 1
+        push!(
+            vertices,
+            VrpVertex(
+                maximum(nodes) + 1,
+                network_sink,
+                -1,
+                -1,
+                Dict{Int,Tuple{Float64,Float64}}(),
+                Int[],
+            ),
+        )
+        cycle_problem = true
+    end
 
-   cycle_problem = false
-   if source == sink # create a sink node internally?
-      network_sink = length(nodes) + 1
-      push!(vertices, VrpVertex(maximum(nodes) + 1, network_sink, -1, -1, Dict{Int,Tuple{Float64,Float64}}(), Int[]))
-      cycle_problem = true
-   end
-
-   incoming_arcs = [VrpArc[] for i in 1:length(vertices)]
-   VrpGraph(-1, network_source, network_sink, vertices, VrpArc[], Dict{Int,VrpArc}(), incoming_arcs, VrpResource[],
-      multiplicity, user_vertex_id_map, cycle_problem, Dict{Tuple{Int,Int},Tuple{Float64,Float64}}(),
-      Dict{Tuple{Int,Int},Tuple{Float64,Float64}}(), Dict{Int,Int}(), nothing, nothing,
-      Array{Array{Int,1},1}[]
-   )
+    incoming_arcs = [VrpArc[] for i in 1:length(vertices)]
+    VrpGraph(
+        -1,
+        network_source,
+        network_sink,
+        vertices,
+        VrpArc[],
+        Dict{Int,VrpArc}(),
+        incoming_arcs,
+        VrpResource[],
+        multiplicity,
+        user_vertex_id_map,
+        cycle_problem,
+        Dict{Tuple{Int,Int},Tuple{Float64,Float64}}(),
+        Dict{Tuple{Int,Int},Tuple{Float64,Float64}}(),
+        Dict{Int,Int}(),
+        nothing,
+        nothing,
+        Array{Array{Int,1},1}[],
+    )
 end
 
 """
@@ -294,40 +336,42 @@ Add `VrpGraph` to a `VrpModel`.
 This function should be called once for each graph in the model.
 """
 function add_graph!(model::VrpModel, graph::VrpGraph)
-   graph.id = length(model.graphs) + 1
-   push!(model.graphs, graph)
+    graph.id = length(model.graphs) + 1
+    push!(model.graphs, graph)
 
-   #first, create automatic resource if needed
-   if isempty(filter(r -> r.is_main, graph.resources))
-      res_id = add_resource!(graph, main=true, step_size=1.0)
-      graph.resources[res_id].is_automatic = true
-      println("Warning: An automatic main resource for Graph $(graph.id) has been created")
-      flush(stdout)
-   end
+    #first, create automatic resource if needed
+    if isempty(filter(r -> r.is_main, graph.resources))
+        res_id = add_resource!(graph; main = true, step_size = 1.0)
+        graph.resources[res_id].is_automatic = true
+        println(
+            "Warning: An automatic main resource for Graph $(graph.id) has been created"
+        )
+        flush(stdout)
+    end
 
-   # second, define intervals on vertices
-   for key in keys(graph.res_bounds_vertex)
-      vertex, res_id = key
-      res = graph.resources[res_id]
-      if res.is_binary
-         if vertex != graph.source_id
+    # second, define intervals on vertices
+    for key in keys(graph.res_bounds_vertex)
+        vertex, res_id = key
+        res = graph.resources[res_id]
+        if res.is_binary
+            if vertex != graph.source_id
+                graph.vertices[vertex].res_bounds[res_id] = graph.res_bounds_vertex[key]
+            end
+        else
             graph.vertices[vertex].res_bounds[res_id] = graph.res_bounds_vertex[key]
-         end
-      else
-         graph.vertices[vertex].res_bounds[res_id] = graph.res_bounds_vertex[key]
-         for arc in graph.incoming_arcs[vertex]
-            arc.res_bounds[res_id] = graph.res_bounds_vertex[key]
-         end
-      end
-   end
+            for arc in graph.incoming_arcs[vertex]
+                arc.res_bounds[res_id] = graph.res_bounds_vertex[key]
+            end
+        end
+    end
 
-   # third, define intervals on arcs (overriding, if necessary, the previous definitions)
-   for key in keys(graph.res_bounds_arc)
-      arc_id, res_id = key
-      graph.arcs[arc_id].res_bounds[res_id] = graph.res_bounds_arc[key]
-   end
+    # third, define intervals on arcs (overriding, if necessary, the previous definitions)
+    for key in keys(graph.res_bounds_arc)
+        arc_id, res_id = key
+        graph.arcs[arc_id].res_bounds[res_id] = graph.res_bounds_arc[key]
+    end
 
-   return graph
+    return graph
 end
 
 """
@@ -350,42 +394,57 @@ r2 = add_resource!(graph, main=true, disposable=false) # create a main, non-disp
 ```
 
 """
-function add_resource!(graph::VrpGraph; main=false, binary=false, disposable=true, step_size=0.0)
-   main && binary && error("VRPSolver error: binary resource cannot be main resource")
+function add_resource!(
+    graph::VrpGraph; main = false, binary = false, disposable = true, step_size = 0.0
+)
+    main && binary && error("VRPSolver error: binary resource cannot be main resource")
 
-   res_id = length(graph.resources) + 1
-   push!(graph.resources, VrpResource(res_id, main, binary, disposable, false, step_size))
-   if binary
-      for vertex in graph.vertices
-         vertex.res_bounds[res_id] = (0.0, 1.0)
-      end
-   end
-   for arc in graph.arcs
-      push!(arc.res_consumption, 0.0)
-      if !binary
-         arc.res_bounds[res_id] = (0.0, 0.0)
-      end
-   end
-   return res_id
+    res_id = length(graph.resources) + 1
+    push!(graph.resources, VrpResource(res_id, main, binary, disposable, false, step_size))
+    if binary
+        for vertex in graph.vertices
+            vertex.res_bounds[res_id] = (0.0, 1.0)
+        end
+    end
+    for arc in graph.arcs
+        push!(arc.res_consumption, 0.0)
+        if !binary
+            arc.res_bounds[res_id] = (0.0, 0.0)
+        end
+    end
+    return res_id
 end
 
-function set_resource_bounds_aux!(graph::VrpGraph, vertex::Int, res_id::Int, lb::Float64, ub::Float64)
-   if !graph.cycle_problem && vertex == graph.source_id && (lb != 0.0 || ub != 0.0)
-      println("VRPSolver warning: Interval set for resource $(res_id) on source node (when source != sink) is ignored (by definition is [0.0,0.0])")
-      flush(stdout)
-   end
-   if graph.resources[res_id].is_binary
-      if (lb, ub) != (0, 0) && (lb, ub) != (0, 1) && (lb, ub) != (1, 1)
-         error("VRPSolver error: binary resources only supports the intervals [0,0], [0,1] and [1,1].")
-      end
-      if !graph.resources[res_id].is_disposable && ((vertex == graph.sink_id) || (graph.cycle_problem && (vertex == graph.source_id))) && (lb != ub)
-         error("VRPSolver error: non-disposable binary resources cannot have the interval [0,1] set for the sink node")
-      end
-   end
-   graph.res_bounds_vertex[vertex, res_id] = (lb, ub) # store interval for res_id on vertex (to be defined in add_graph)
-   if graph.cycle_problem && (vertex == graph.source_id) # add bounds for graph.sink_id (because the user will not set)
-      set_resource_bounds_aux!(graph, graph.sink_id, res_id, lb, ub)
-   end
+function set_resource_bounds_aux!(
+    graph::VrpGraph, vertex::Int, res_id::Int, lb::Float64, ub::Float64
+)
+    if !graph.cycle_problem && vertex == graph.source_id && (lb != 0.0 || ub != 0.0)
+        println(
+            "VRPSolver warning: Interval set for resource $(res_id) on source node (when source != sink) is ignored (by definition is [0.0,0.0])",
+        )
+        flush(stdout)
+    end
+    if graph.resources[res_id].is_binary
+        if (lb, ub) != (0, 0) && (lb, ub) != (0, 1) && (lb, ub) != (1, 1)
+            error(
+                "VRPSolver error: binary resources only supports the intervals [0,0], [0,1] and [1,1].",
+            )
+        end
+        if !graph.resources[res_id].is_disposable &&
+            (
+                (vertex == graph.sink_id) ||
+                (graph.cycle_problem && (vertex == graph.source_id))
+            ) &&
+            (lb != ub)
+            error(
+                "VRPSolver error: non-disposable binary resources cannot have the interval [0,1] set for the sink node",
+            )
+        end
+    end
+    graph.res_bounds_vertex[vertex, res_id] = (lb, ub) # store interval for res_id on vertex (to be defined in add_graph)
+    if graph.cycle_problem && (vertex == graph.source_id) # add bounds for graph.sink_id (because the user will not set)
+        set_resource_bounds_aux!(graph, graph.sink_id, res_id, lb, ub)
+    end
 end
 
 """
@@ -402,12 +461,16 @@ Defining the interval ``[lb,ub]`` for res_id at vertex is equivalent to defining
 - `ub::Float64`: upper bound on the resource consumption at the vertex.
 
 """
-function set_resource_bounds!(graph::VrpGraph, vertex::Int, res_id::Int, lb::Float64, ub::Float64)
-   check_id(res_id, 1, length(graph.resources))
-   set_resource_bounds_aux!(graph, graph.user_vertex_id_map[vertex], res_id, lb, ub)
+function set_resource_bounds!(
+    graph::VrpGraph, vertex::Int, res_id::Int, lb::Float64, ub::Float64
+)
+    check_id(res_id, 1, length(graph.resources))
+    set_resource_bounds_aux!(graph, graph.user_vertex_id_map[vertex], res_id, lb, ub)
 end
 
-set_resource_bounds!(graph::VrpGraph, vertex::Int, res_id::Int, lb, ub) = set_resource_bounds!(graph, vertex, res_id, Float64(lb), Float64(ub))
+function set_resource_bounds!(graph::VrpGraph, vertex::Int, res_id::Int, lb, ub)
+    set_resource_bounds!(graph, vertex, res_id, Float64(lb), Float64(ub))
+end
 
 """
     add_elem_set_to_vertex_init_ng_neighbourhood!(model::VrpModel, graph::VrpGraph, vertex_id::Int, es_id::Int)
@@ -423,13 +486,15 @@ In fact, distance matrix is taken into account only if user-defined ng-sets are 
 - `vertex_id::Int`: vertex id
 - `es_id::Int`: elementarity set id. The valid ids are ``\\{1,2,\\dots,|\\mathcal{P}^V|,|\\mathcal{P}^V|+1,|\\mathcal{P}^V|+2,\\dots,|\\mathcal{P}^V|+|\\mathcal{E}^V|\\}`` (considering automatic and additional elem. sets)
 """
-function add_elem_set_to_vertex_init_ng_neighbourhood!(model::VrpModel, graph::VrpGraph, vertex_id::Int, es_id::Int)
-   check_id(es_id, 1, length(model.packing_sets) + length(graph.elem_sets))
-   check_vertex_id(graph, vertex_id)
-   vertex = graph.vertices[graph.user_vertex_id_map[vertex_id]]
-   if !(es_id in vertex.ng_set)
-      push!(vertex.ng_set, es_id)
-   end
+function add_elem_set_to_vertex_init_ng_neighbourhood!(
+    model::VrpModel, graph::VrpGraph, vertex_id::Int, es_id::Int
+)
+    check_id(es_id, 1, length(model.packing_sets) + length(graph.elem_sets))
+    check_vertex_id(graph, vertex_id)
+    vertex = graph.vertices[graph.user_vertex_id_map[vertex_id]]
+    if !(es_id in vertex.ng_set)
+        push!(vertex.ng_set, es_id)
+    end
 end
 
 """
@@ -447,13 +512,15 @@ In fact, distance matrix is taken into account only if user-defined ng-sets are 
 - `arc_id::Int`: arc id
 - `es_id::Int`: elementarity set id. The valid ids are ``\\{1,2,\\dots,|\\mathcal{P}|,|\\mathcal{P}|+1,|\\mathcal{P}|+2,\\dots,|\\mathcal{P}|+|\\mathcal{E}|\\}`` (considering automatic and additional elem. sets)
 """
-function add_elem_set_to_arc_init_ng_neighbourhood!(model::VrpModel, graph::VrpGraph, arc_id::Int, es_id::Int)
-   check_id(arc_id, 1, length(graph.arcs))
-   check_id(es_id, 1, length(model.packing_sets) + length(graph.elem_sets))
-   arc = graph.arcs[arc_id]
-   if !(es_id in arc.ng_set)
-      push!(arc.ng_set, es_id)
-   end
+function add_elem_set_to_arc_init_ng_neighbourhood!(
+    model::VrpModel, graph::VrpGraph, arc_id::Int, es_id::Int
+)
+    check_id(arc_id, 1, length(graph.arcs))
+    check_id(es_id, 1, length(model.packing_sets) + length(graph.elem_sets))
+    arc = graph.arcs[arc_id]
+    if !(es_id in arc.ng_set)
+        push!(arc.ng_set, es_id)
+    end
 end
 
 #TODO: check for repeated variables before passing the model to bapcod
@@ -474,33 +541,43 @@ add_arc_var_mapping!(graph, arc_id, [x1, x2]) # map x1 and x2
 add_arc_var_mapping!(graph, arc_id, x) # map x
 ```
 """
-function add_arc_var_mapping!(graph::VrpGraph, arc_id::Int, vars::Array{Tuple{JuMP.VariableRef,Float64}})
-   check_id(arc_id, 1, length(graph.arcs))
-   for (user_var, coeff) in vars
-      if is_binary(user_var) == :Bin
-         error("ERROR: mapping a binary variable is not allowed. Please redefine it as integer or continuous.")
-      end
-      for (var, c) in graph.arcs[arc_id].vars
-         if var == user_var
-            error("ERROR: variable $(user_var) is mapped more than once to arc $(arc_id) of graph $(graph.id)")
-         end
-      end
-      push!(graph.arcs[arc_id].vars, (user_var, coeff))
-   end
+function add_arc_var_mapping!(
+    graph::VrpGraph, arc_id::Int, vars::Array{Tuple{JuMP.VariableRef,Float64}}
+)
+    check_id(arc_id, 1, length(graph.arcs))
+    for (user_var, coeff) in vars
+        if is_binary(user_var) == :Bin
+            error(
+                "ERROR: mapping a binary variable is not allowed. Please redefine it as integer or continuous.",
+            )
+        end
+        for (var, c) in graph.arcs[arc_id].vars
+            if var == user_var
+                error(
+                    "ERROR: variable $(user_var) is mapped more than once to arc $(arc_id) of graph $(graph.id)",
+                )
+            end
+        end
+        push!(graph.arcs[arc_id].vars, (user_var, coeff))
+    end
 end
-add_arc_var_mapping!(graph::VrpGraph, arc_id::Int, var::JuMP.VariableRef) = add_arc_var_mapping!(graph, arc_id, [(var, 1.0)])
-add_arc_var_mapping!(graph::VrpGraph, arc_id::Int, vars::Array{JuMP.VariableRef}) = add_arc_var_mapping!(graph, arc_id, [(var, 1.0) for var in vars])
+function add_arc_var_mapping!(graph::VrpGraph, arc_id::Int, var::JuMP.VariableRef)
+    add_arc_var_mapping!(graph, arc_id, [(var, 1.0)])
+end
+function add_arc_var_mapping!(graph::VrpGraph, arc_id::Int, vars::Array{JuMP.VariableRef})
+    add_arc_var_mapping!(graph, arc_id, [(var, 1.0) for var in vars])
+end
 
 default_consumptions(graph::VrpGraph) = [0.0 for i in 1:length(graph.resources)]
 
 function default_resbounds(graph::VrpGraph)
-   bounds = Dict{Int,Tuple{Float64,Float64}}()
-   for res in graph.resources
-      if !res.is_binary
-         bounds[res.id] = (0.0, 0.0)
-      end
-   end
-   return bounds
+    bounds = Dict{Int,Tuple{Float64,Float64}}()
+    for res in graph.resources
+        if !res.is_binary
+            bounds[res.id] = (0.0, 0.0)
+        end
+    end
+    return bounds
 end
 
 """
@@ -522,20 +599,49 @@ arc_id = add_arc!(graph, 1, 2, x1) # add (1,2) mapped to x and get the arc id
 arc_id = add_arc!(graph, 1, 2) # add (1,2) without mapped variable
 ```
 """
-function add_arc!(graph::VrpGraph, tail::Int, head::Int, vars::Array{Tuple{JuMP.VariableRef,Float64}}=Tuple{JuMP.VariableRef,Float64}[])
-   arc = []
-   if graph.cycle_problem && (graph.user_vertex_id_map[head] == graph.source_id)
-      arc = VrpArc(length(graph.arcs) + 1, graph.user_vertex_id_map[tail], graph.sink_id, -1, -1, default_consumptions(graph), default_resbounds(graph), vars, Int[])
-   else
-      arc = VrpArc(length(graph.arcs) + 1, graph.user_vertex_id_map[tail], graph.user_vertex_id_map[head], -1, -1, default_consumptions(graph), default_resbounds(graph), vars, Int[])
-   end
-   push!(graph.incoming_arcs[arc.head], arc)
-   push!(graph.arcs, arc)
-   graph.arc_id_to_arc[arc.id] = arc
-   return arc.id
+function add_arc!(
+    graph::VrpGraph,
+    tail::Int,
+    head::Int,
+    vars::Array{Tuple{JuMP.VariableRef,Float64}} = Tuple{JuMP.VariableRef,Float64}[],
+)
+    arc = []
+    if graph.cycle_problem && (graph.user_vertex_id_map[head] == graph.source_id)
+        arc = VrpArc(
+            length(graph.arcs) + 1,
+            graph.user_vertex_id_map[tail],
+            graph.sink_id,
+            -1,
+            -1,
+            default_consumptions(graph),
+            default_resbounds(graph),
+            vars,
+            Int[],
+        )
+    else
+        arc = VrpArc(
+            length(graph.arcs) + 1,
+            graph.user_vertex_id_map[tail],
+            graph.user_vertex_id_map[head],
+            -1,
+            -1,
+            default_consumptions(graph),
+            default_resbounds(graph),
+            vars,
+            Int[],
+        )
+    end
+    push!(graph.incoming_arcs[arc.head], arc)
+    push!(graph.arcs, arc)
+    graph.arc_id_to_arc[arc.id] = arc
+    return arc.id
 end
-add_arc!(graph::VrpGraph, tail::Int, head::Int, var::JuMP.VariableRef) = add_arc!(graph, tail, head, [(var, 1.0)])
-add_arc!(graph::VrpGraph, tail::Int, head::Int, vars::Array{JuMP.VariableRef}) = add_arc!(graph, tail, head, [(var, 1.0) for var in vars])
+function add_arc!(graph::VrpGraph, tail::Int, head::Int, var::JuMP.VariableRef)
+    add_arc!(graph, tail, head, [(var, 1.0)])
+end
+function add_arc!(graph::VrpGraph, tail::Int, head::Int, vars::Array{JuMP.VariableRef})
+    add_arc!(graph, tail, head, [(var, 1.0) for var in vars])
+end
 
 """
     set_arc_consumption!(graph::VrpGraph, arc_id::Int, res_id::Int, value::Union{Int,Float64})
@@ -553,10 +659,14 @@ Set the arc consumption for a specific resource.
 set_arc_consumption!(graph, 3, 1, 2.5) # define a consumption of 2.5 for the resource 1 when passing by the arc 3 
 ```
 """
-function set_arc_consumption!(graph::VrpGraph, arc_id::Int, res_id::Int, value::Union{Int,Float64})
-   check_id(arc_id, 1, length(graph.arcs))
-   graph.resources[res_id].is_binary && (value != -1 && value != 0 && value != 1) && error("VRPSolver error: arc consumption for binary resources must be -1, 0, or 1")
-   graph.arcs[arc_id].res_consumption[res_id] = Float64(value)
+function set_arc_consumption!(
+    graph::VrpGraph, arc_id::Int, res_id::Int, value::Union{Int,Float64}
+)
+    check_id(arc_id, 1, length(graph.arcs))
+    graph.resources[res_id].is_binary &&
+        (value != -1 && value != 0 && value != 1) &&
+        error("VRPSolver error: arc consumption for binary resources must be -1, 0, or 1")
+    graph.arcs[arc_id].res_consumption[res_id] = Float64(value)
 end
 
 """
@@ -565,7 +675,7 @@ end
 Get the arc consumption value for a specific resource.
 """
 function get_arc_consumption(graph::VrpGraph, arc_id::Int, res_id::Int)
-   graph.arcs[arc_id].res_consumption[res_id]
+    graph.arcs[arc_id].res_consumption[res_id]
 end
 
 """
@@ -580,24 +690,29 @@ Set the resource bounds for an arc of the VrpGraph `graph`.
 - `ub::Float64`: upper bound on the resource consumption at the vertex.
 
 """
-function set_arc_resource_bounds!(graph::VrpGraph, arc_id::Int, res_id::Int, lb::Float64, ub::Float64)
-   check_id(res_id, 1, length(graph.resources))
-   res = graph.resources[res_id]
-   if res.is_binary
-      error("ERROR: Resource bounds on arcs for binary resources is not yet implemented. Please use the vertex-based function set_resource_bounds!.")
-   else
-      graph.res_bounds_arc[arc_id, res_id] = (lb, ub)
-   end
+function set_arc_resource_bounds!(
+    graph::VrpGraph, arc_id::Int, res_id::Int, lb::Float64, ub::Float64
+)
+    check_id(res_id, 1, length(graph.resources))
+    res = graph.resources[res_id]
+    if res.is_binary
+        error(
+            "ERROR: Resource bounds on arcs for binary resources is not yet implemented. Please use the vertex-based function set_resource_bounds!.",
+        )
+    else
+        graph.res_bounds_arc[arc_id, res_id] = (lb, ub)
+    end
 end
 
-set_arc_resource_bounds!(graph::VrpGraph, arc_id::Int, res_id::Int, lb, ub) = set_arc_resource_bounds!(graph, arc_id, res_id, Float64(lb), Float64(ub))
+function set_arc_resource_bounds!(graph::VrpGraph, arc_id::Int, res_id::Int, lb, ub)
+    set_arc_resource_bounds!(graph, arc_id, res_id, Float64(lb), Float64(ub))
+end
 
 function is_preprocessed_arc(graph::VrpGraph, arc::VrpArc)
-   if !graph.cycle_problem &&
-      (arc.head == graph.source_id || arc.tail == graph.sink_id)
-      return true
-   end
-   return false
+    if !graph.cycle_problem && (arc.head == graph.source_id || arc.tail == graph.sink_id)
+        return true
+    end
+    return false
 end
 
 """
@@ -608,64 +723,75 @@ Return the set of arcs of a VrpGraph as an array of triples, where each triple c
 For example, if the function returns `[(1,2,1), (2,1,2)]`, it must be interpreted as `graph` having two arcs: `(1,2)` with id `1` and `(2,1)` with id `2`.
 """
 function get_arc_set(graph::VrpGraph)
-   arcs = []
-   if graph.cycle_problem
-      for arc in graph.arcs
-         i = (arc.tail == graph.sink_id) ? graph.source_id : arc.tail
-         j = (arc.head == graph.sink_id) ? graph.source_id : arc.head
-         push!(arcs, (graph.vertices[i].user_id, graph.vertices[j].user_id, arc.id))
-      end
-   else
-      arcs = [(graph.vertices[arc.tail].user_id, graph.vertices[arc.head].user_id, arc.id) for arc in graph.arcs]
-   end
-   return arcs
+    arcs = []
+    if graph.cycle_problem
+        for arc in graph.arcs
+            i = (arc.tail == graph.sink_id) ? graph.source_id : arc.tail
+            j = (arc.head == graph.sink_id) ? graph.source_id : arc.head
+            push!(arcs, (graph.vertices[i].user_id, graph.vertices[j].user_id, arc.id))
+        end
+    else
+        arcs = [
+            (graph.vertices[arc.tail].user_id, graph.vertices[arc.head].user_id, arc.id) for
+            arc in graph.arcs
+        ]
+    end
+    return arcs
 end
 
 function reset_packing_sets(user_model::VrpModel)
-   empty!(user_model.packing_sets)
-   user_model.packing_sets_type = NoSet
-   for graph in user_model.graphs
-      for vertex in graph.vertices
-         vertex.packing_set = -1
-         empty!(vertex.ng_set)
-      end
-      for arc in graph.arcs
-         arc.packing_set = -1
-         empty!(arc.ng_set)
-      end
-   end
+    empty!(user_model.packing_sets)
+    user_model.packing_sets_type = NoSet
+    for graph in user_model.graphs
+        for vertex in graph.vertices
+            vertex.packing_set = -1
+            empty!(vertex.ng_set)
+        end
+        for arc in graph.arcs
+            arc.packing_set = -1
+            empty!(arc.ng_set)
+        end
+    end
 end
 
 function reset_elem_sets(user_model::VrpModel)
-   user_model.elem_sets_type = NoSet
-   for graph in user_model.graphs
-      empty!(graph.elem_sets)
-      graph.es_dist_matrix = nothing
-      for vertex in graph.vertices
-         vertex.elem_set = -1
-         empty!(vertex.ng_set)
-      end
-      for arc in graph.arcs
-         arc.elem_set = -1
-         empty!(arc.ng_set)
-      end
-   end
+    user_model.elem_sets_type = NoSet
+    for graph in user_model.graphs
+        empty!(graph.elem_sets)
+        graph.es_dist_matrix = nothing
+        for vertex in graph.vertices
+            vertex.elem_set = -1
+            empty!(vertex.ng_set)
+        end
+        for arc in graph.arcs
+            arc.elem_set = -1
+            empty!(arc.ng_set)
+        end
+    end
 end
 
-function add_arc_to_packing_set(model::VrpModel, graph::VrpGraph, arc_id::Int, packing_set_id::Int)
-   check_id(arc_id, 1, length(graph.arcs))
-   check_id(packing_set_id, 1, length(model.packing_sets))
-   (graph.arcs[arc_id].packing_set != -1) && error("an arc cannot belong to more than 1 packing set")
-   graph.arcs[arc_id].packing_set = packing_set_id
-   (graph.arcs[arc_id].elem_set != -1) && error("an arc cannot belong to more than 1 elementarity set")
+function add_arc_to_packing_set(
+    model::VrpModel, graph::VrpGraph, arc_id::Int, packing_set_id::Int
+)
+    check_id(arc_id, 1, length(graph.arcs))
+    check_id(packing_set_id, 1, length(model.packing_sets))
+    (graph.arcs[arc_id].packing_set != -1) &&
+        error("an arc cannot belong to more than 1 packing set")
+    graph.arcs[arc_id].packing_set = packing_set_id
+    (graph.arcs[arc_id].elem_set != -1) &&
+        error("an arc cannot belong to more than 1 elementarity set")
 end
 
-function add_arc_to_elementarity_set(model::VrpModel, graph::VrpGraph, arc_id::Int, es_id::Int)
-   check_id(arc_id, 1, length(graph.arcs))
-   check_id(es_id, 1, length(graph.elem_sets) + length(model.packing_sets))
-   (graph.arcs[arc_id].elem_set != -1) && error("an arc cannot belong to more than 1 elementarity set")
-   (graph.arcs[arc_id].packing_set != -1) && error("an arc cannot belong to more than 1 elementarity set")
-   graph.arcs[arc_id].elem_set = es_id
+function add_arc_to_elementarity_set(
+    model::VrpModel, graph::VrpGraph, arc_id::Int, es_id::Int
+)
+    check_id(arc_id, 1, length(graph.arcs))
+    check_id(es_id, 1, length(graph.elem_sets) + length(model.packing_sets))
+    (graph.arcs[arc_id].elem_set != -1) &&
+        error("an arc cannot belong to more than 1 elementarity set")
+    (graph.arcs[arc_id].packing_set != -1) &&
+        error("an arc cannot belong to more than 1 elementarity set")
+    graph.arcs[arc_id].elem_set = es_id
 end
 
 """
@@ -686,18 +812,20 @@ ps_3 = [(G[2],3),(G[3],2)] # another packing set
 set_arc_packing_sets!(model, [ps_1, ps_2, ps_3]) # passing the collection of packing sets to the model
 ```
 """
-function set_arc_packing_sets!(user_model::VrpModel, collection::Array{Array{Tuple{VrpGraph,Int},1},1})
-   if user_model.elem_sets_type != NoSet
-      error("Packing sets cannot be defined after elementarity sets")
-   end
-   reset_packing_sets(user_model)
-   user_model.packing_sets = collection
-   user_model.packing_sets_type = ArcSet
-   for ps_id in 1:length(collection)
-      for (graph, arc_id) in collection[ps_id]
-         add_arc_to_packing_set(user_model, graph, arc_id, ps_id)
-      end
-   end
+function set_arc_packing_sets!(
+    user_model::VrpModel, collection::Array{Array{Tuple{VrpGraph,Int},1},1}
+)
+    if user_model.elem_sets_type != NoSet
+        error("Packing sets cannot be defined after elementarity sets")
+    end
+    reset_packing_sets(user_model)
+    user_model.packing_sets = collection
+    user_model.packing_sets_type = ArcSet
+    for ps_id in 1:length(collection)
+        for (graph, arc_id) in collection[ps_id]
+            add_arc_to_packing_set(user_model, graph, arc_id, ps_id)
+        end
+    end
 end
 
 """
@@ -719,38 +847,48 @@ es_3 = (G[2],[1,4,6,7]) # another elem. set on G[2]
 set_additional_arc_elementarity_sets!(model, [es_1, es_2, es_3]) # passing the collection of elem. sets to the model
 ```
 """
-function set_additional_arc_elementarity_sets!(user_model::VrpModel, collection::Array{Tuple{VrpGraph,Array{Int,1}},1})
-   if user_model.packing_sets_type == VertexSet
-      error("Vertex packing sets and arc elementarity sets are not compatible")
-   end
-   reset_elem_sets(user_model)
-   user_model.elem_sets_type = ArcSet
-   for es_id in 1:length(collection)
-      graph, arc_ids = collection[es_id]
-      push!(graph.elem_sets, arc_ids)
-      for arc_id in arc_ids
-         add_arc_to_elementarity_set(user_model, graph, arc_id, es_id)
-      end
-   end
-   return length(user_model.packing_sets)
+function set_additional_arc_elementarity_sets!(
+    user_model::VrpModel, collection::Array{Tuple{VrpGraph,Array{Int,1}},1}
+)
+    if user_model.packing_sets_type == VertexSet
+        error("Vertex packing sets and arc elementarity sets are not compatible")
+    end
+    reset_elem_sets(user_model)
+    user_model.elem_sets_type = ArcSet
+    for es_id in 1:length(collection)
+        graph, arc_ids = collection[es_id]
+        push!(graph.elem_sets, arc_ids)
+        for arc_id in arc_ids
+            add_arc_to_elementarity_set(user_model, graph, arc_id, es_id)
+        end
+    end
+    return length(user_model.packing_sets)
 end
 
-function add_vertex_to_packing_set(model::VrpModel, graph::VrpGraph, vertex_id::Int, packing_set_id::Int)
-   check_vertex_id(graph, vertex_id)
-   check_id(packing_set_id, 1, length(model.packing_sets))
-   vertexAlgId = graph.user_vertex_id_map[vertex_id]
-   (graph.vertices[vertexAlgId].packing_set != -1) && error("a vertex cannot belong to more than 1 packing set")
-   graph.vertices[vertexAlgId].packing_set = packing_set_id
-   (graph.vertices[vertexAlgId].elem_set != -1) && error("a vertex cannot belong to more than 1 elementarity set")
+function add_vertex_to_packing_set(
+    model::VrpModel, graph::VrpGraph, vertex_id::Int, packing_set_id::Int
+)
+    check_vertex_id(graph, vertex_id)
+    check_id(packing_set_id, 1, length(model.packing_sets))
+    vertexAlgId = graph.user_vertex_id_map[vertex_id]
+    (graph.vertices[vertexAlgId].packing_set != -1) &&
+        error("a vertex cannot belong to more than 1 packing set")
+    graph.vertices[vertexAlgId].packing_set = packing_set_id
+    (graph.vertices[vertexAlgId].elem_set != -1) &&
+        error("a vertex cannot belong to more than 1 elementarity set")
 end
 
-function add_vertex_to_elem_set(model::VrpModel, graph::VrpGraph, vertex_id::Int, es_id::Int)
-   check_vertex_id(graph, vertex_id)
-   check_id(es_id, 1, length(graph.elem_sets) + length(model.packing_sets))
-   vertexAlgId = graph.user_vertex_id_map[vertex_id]
-   (graph.vertices[vertexAlgId].elem_set != -1) && error("a vertex cannot belong to more than 1 elementarity set")
-   graph.vertices[vertexAlgId].elem_set = es_id
-   (graph.vertices[vertexAlgId].packing_set != -1) && error("a vertex cannot belong to more than 1 elementarity set")
+function add_vertex_to_elem_set(
+    model::VrpModel, graph::VrpGraph, vertex_id::Int, es_id::Int
+)
+    check_vertex_id(graph, vertex_id)
+    check_id(es_id, 1, length(graph.elem_sets) + length(model.packing_sets))
+    vertexAlgId = graph.user_vertex_id_map[vertex_id]
+    (graph.vertices[vertexAlgId].elem_set != -1) &&
+        error("a vertex cannot belong to more than 1 elementarity set")
+    graph.vertices[vertexAlgId].elem_set = es_id
+    (graph.vertices[vertexAlgId].packing_set != -1) &&
+        error("a vertex cannot belong to more than 1 elementarity set")
 end
 
 """
@@ -771,76 +909,78 @@ ps_3 = [(G[2],3),(G[3],2)] # another packing set
 set_vertex_packing_sets!(model, [ps_1, ps_2, ps_3]) # passing the collection of packing sets to the model
 ```
 """
-function set_vertex_packing_sets!(user_model::VrpModel, collection::Array{Array{Tuple{VrpGraph,Int},1},1}, define_covering_sets::Bool=false)
-   if user_model.elem_sets_type != NoSet
-      error("Packing sets cannot be defined after elementarity sets")
-   end
-   reset_packing_sets(user_model)
-   user_model.packing_sets = collection
-   user_model.packing_sets_type = VertexSet
-   user_model.define_covering_sets = define_covering_sets
-   n = length(collection)
-   for ps_id in 1:n
-      for (graph, vertex_id) in collection[ps_id]
-         add_vertex_to_packing_set(user_model, graph, vertex_id, ps_id)
-      end
-   end
+function set_vertex_packing_sets!(
+    user_model::VrpModel,
+    collection::Array{Array{Tuple{VrpGraph,Int},1},1},
+    define_covering_sets::Bool = false,
+)
+    if user_model.elem_sets_type != NoSet
+        error("Packing sets cannot be defined after elementarity sets")
+    end
+    reset_packing_sets(user_model)
+    user_model.packing_sets = collection
+    user_model.packing_sets_type = VertexSet
+    user_model.define_covering_sets = define_covering_sets
+    n = length(collection)
+    for ps_id in 1:n
+        for (graph, vertex_id) in collection[ps_id]
+            add_vertex_to_packing_set(user_model, graph, vertex_id, ps_id)
+        end
+    end
 
-   # function to compute the packing set pair connected by the arc of a pair
-   # (graph, arc) where vectices not associated to packing sets are assigned to
-   # the dummy packing set id n+1
-   function get_packing_set_pair(gr_arc::Tuple{VrpGraph,VrpArc})::Tuple{Int,Int}
-      graph = gr_arc[1]
-      arc = gr_arc[2]
-      head = graph.vertices[arc.head].packing_set
-      head = (head < 1) ? n + 1 : head
-      tail = graph.vertices[arc.tail].packing_set
-      tail = (tail < 1) ? n + 1 : tail
-      if head < tail
-         return head, tail
-      else
-         return tail, head
-      end
-   end
+    # function to compute the packing set pair connected by the arc of a pair
+    # (graph, arc) where vectices not associated to packing sets are assigned to
+    # the dummy packing set id n+1
+    function get_packing_set_pair(gr_arc::Tuple{VrpGraph,VrpArc})::Tuple{Int,Int}
+        graph = gr_arc[1]
+        arc = gr_arc[2]
+        head = graph.vertices[arc.head].packing_set
+        head = (head < 1) ? n + 1 : head
+        tail = graph.vertices[arc.tail].packing_set
+        tail = (tail < 1) ? n + 1 : tail
+        if head < tail
+            return head, tail
+        else
+            return tail, head
+        end
+    end
 
-   # build data structures to access lists of arcs by packing set pairs
-   # and by mapped variables (to be used next)
-   user_model.arcs_by_packing_set_pairs = [
-      Tuple{VrpGraph,VrpArc}[] for i in 1:n, j in 1:n
-   ]
-   mapped_arcs_by_vars = Dict{JuMP.VariableRef,Array{Tuple{VrpGraph,VrpArc},1}}()
-   for graph in user_model.graphs
-      for arc in graph.arcs
-         head, tail = get_packing_set_pair((graph, arc))
-         if tail <= n
-            push!(user_model.arcs_by_packing_set_pairs[head, tail], (graph, arc))
-         end
-         for (var, val) in arc.vars
-            if haskey(mapped_arcs_by_vars, var)
-               push!(mapped_arcs_by_vars[var], (graph, arc))
-            else
-               mapped_arcs_by_vars[var] = [(graph, arc)]
+    # build data structures to access lists of arcs by packing set pairs
+    # and by mapped variables (to be used next)
+    user_model.arcs_by_packing_set_pairs = [Tuple{VrpGraph,VrpArc}[] for i in 1:n, j in 1:n]
+    mapped_arcs_by_vars = Dict{JuMP.VariableRef,Array{Tuple{VrpGraph,VrpArc},1}}()
+    for graph in user_model.graphs
+        for arc in graph.arcs
+            head, tail = get_packing_set_pair((graph, arc))
+            if tail <= n
+                push!(user_model.arcs_by_packing_set_pairs[head, tail], (graph, arc))
             end
-         end
-      end
-   end
+            for (var, val) in arc.vars
+                if haskey(mapped_arcs_by_vars, var)
+                    push!(mapped_arcs_by_vars[var], (graph, arc))
+                else
+                    mapped_arcs_by_vars[var] = [(graph, arc)]
+                end
+            end
+        end
+    end
 
-   # determine, for each packing set pairs, which arcs are not covered by
-   # appropriate variables (variables mapped to arcs connecting the same packing
-   # set pair, in any direction)
-   for (var, gr_arcs) in mapped_arcs_by_vars
-      head, tail = get_packing_set_pair(gr_arcs[1])
-      appropriate = (head != tail) && (tail <= n)
-      for gr_arc in gr_arcs[2:end]
-         if (head, tail) != get_packing_set_pair(gr_arc)
-            appropriate = false
-         end
-      end
-      if appropriate
-         ps_gr_arcs = user_model.arcs_by_packing_set_pairs[head, tail]
-         filter!(x -> !(x in gr_arcs), ps_gr_arcs)
-      end
-   end
+    # determine, for each packing set pairs, which arcs are not covered by
+    # appropriate variables (variables mapped to arcs connecting the same packing
+    # set pair, in any direction)
+    for (var, gr_arcs) in mapped_arcs_by_vars
+        head, tail = get_packing_set_pair(gr_arcs[1])
+        appropriate = (head != tail) && (tail <= n)
+        for gr_arc in gr_arcs[2:end]
+            if (head, tail) != get_packing_set_pair(gr_arc)
+                appropriate = false
+            end
+        end
+        if appropriate
+            ps_gr_arcs = user_model.arcs_by_packing_set_pairs[head, tail]
+            filter!(x -> !(x in gr_arcs), ps_gr_arcs)
+        end
+    end
 end
 
 """
@@ -862,20 +1002,22 @@ es_3 = (G[2],[1,4,6,7]) # another elem. set on G[2]
 set_additional_vertex_elementarity_sets!(model, [es_1, es_2, es_3]) # passing the collection of elem. sets to the model
 ```
 """
-function set_additional_vertex_elementarity_sets!(user_model::VrpModel, collection::Array{Tuple{VrpGraph,Array{Int,1}},1})
-   if user_model.packing_sets_type == ArcSet
-      error("Arc packing sets and vertex elementarity sets are not compatible")
-   end
-   reset_elem_sets(user_model)
-   user_model.elem_sets_type = VertexSet
-   n = length(collection)
-   for es_id in 1:n
-      (graph, vertex_ids) = collection[es_id]
-      push!(graph.elem_sets, vertex_ids)
-      for vertex_id in vertex_ids
-         add_vertex_to_elem_set(user_model, graph, vertex_id, es_id)
-      end
-   end
+function set_additional_vertex_elementarity_sets!(
+    user_model::VrpModel, collection::Array{Tuple{VrpGraph,Array{Int,1}},1}
+)
+    if user_model.packing_sets_type == ArcSet
+        error("Arc packing sets and vertex elementarity sets are not compatible")
+    end
+    reset_elem_sets(user_model)
+    user_model.elem_sets_type = VertexSet
+    n = length(collection)
+    for es_id in 1:n
+        (graph, vertex_ids) = collection[es_id]
+        push!(graph.elem_sets, vertex_ids)
+        for vertex_id in vertex_ids
+            add_vertex_to_elem_set(user_model, graph, vertex_id, es_id)
+        end
+    end
 end
 
 """
@@ -900,7 +1042,7 @@ set_branching_priority!(model, "y", 1) # than y
 ```
 """
 function set_branching_priority!(model::VrpModel, var_container_name::String, priority::Int)
-   model.branching_priorities[var_container_name] = priority
+    model.branching_priorities[var_container_name] = priority
 end
 
 """
@@ -915,7 +1057,7 @@ Set the branching priority for a set of JuMP expressions.
 
 """
 function set_branching_priority!(model::VrpModel, exps_family, name::String, priority::Int)
-   push!(model.branching_exp_families, (exps_family, name, priority))
+    push!(model.branching_exp_families, (exps_family, name, priority))
 end
 
 """
@@ -938,8 +1080,13 @@ set_branching_priority!(model, "x", 2) # x has higher priority
 set_branching_priority!(model, exp, "exp", 1) # than exp
 ```
 """
-function set_branching_priority!(model::VrpModel, exp::JuMP.GenericAffExpr{Float64,JuMP.VariableRef}, name::String, priority::Int)
-   push!(model.branching_exps, (exp, name, priority))
+function set_branching_priority!(
+    model::VrpModel,
+    exp::JuMP.GenericAffExpr{Float64,JuMP.VariableRef},
+    name::String,
+    priority::Int,
+)
+    push!(model.branching_exps, (exp, name, priority))
 end
 
 """
@@ -963,7 +1110,7 @@ enable_resource_consumption_branching!(model, 1)
 ```
 """
 function enable_resource_consumption_branching!(model::VrpModel, priority::Int)
-   model.branching_priorities["_res_cons_branching_"] = priority
+    model.branching_priorities["_res_cons_branching_"] = priority
 end
 
 """
@@ -986,7 +1133,7 @@ enable_packset_ryanfoster_branching!(model, 2)
 ```
 """
 function enable_packset_ryanfoster_branching!(model::VrpModel, priority::Int)
-   model.branching_priorities["_ryanfoster_branching_"] = priority
+    model.branching_priorities["_ryanfoster_branching_"] = priority
 end
 
 """
@@ -1007,8 +1154,10 @@ add_permanent_ryanfoster_constraint!(model, 1, 2, true)
 add_permanent_ryanfoster_constraint!(model, 3, 4, false) 
 ```
 """
-function add_permanent_ryanfoster_constraint!(model::VrpModel, firstPackSetId::Integer, secondPackSetId::Integer, together::Bool)
-   push!(model.ryanfoster_constraints, (firstPackSetId, secondPackSetId, together))
+function add_permanent_ryanfoster_constraint!(
+    model::VrpModel, firstPackSetId::Integer, secondPackSetId::Integer, together::Bool
+)
+    push!(model.ryanfoster_constraints, (firstPackSetId, secondPackSetId, together))
 end
 
 """
@@ -1026,188 +1175,241 @@ To define the distance between two elementarity sets,
 it is recommended to consider some metric which involves all elements (vertices or arcs) of both elementarity sets.
 
 """
-function define_elementarity_sets_distance_matrix!(model::VrpModel, graph::VrpGraph, matrix::Array{Array{Float64,1},1})
-   n = length(model.packing_sets) + length(graph.elem_sets)
-   size(matrix, 1) != n && error("wrong matrix dimension")
-   for i in 1:n
-      size(matrix[i], 1) != n && error("wrong matrix dimension")
-   end
-   graph.es_dist_matrix = matrix
+function define_elementarity_sets_distance_matrix!(
+    model::VrpModel, graph::VrpGraph, matrix::Array{Array{Float64,1},1}
+)
+    n = length(model.packing_sets) + length(graph.elem_sets)
+    size(matrix, 1) != n && error("wrong matrix dimension")
+    for i in 1:n
+        size(matrix[i], 1) != n && error("wrong matrix dimension")
+    end
+    graph.es_dist_matrix = matrix
 end
 
 function extract_user_var_to_graphs(user_model::VrpModel)
-   var_to_graphs = Dict{JuMP.VariableRef,Array{Int}}()
-   for graph_id in 1:length(user_model.graphs)
-      for arc_id in 1:length(user_model.graphs[graph_id].arcs)
-         for (var, coeff) in user_model.graphs[graph_id].arcs[arc_id].vars
-            if !haskey(var_to_graphs, var)
-               var_to_graphs[var] = [graph_id]
-            elseif !(graph_id in var_to_graphs[var])
-               push!(var_to_graphs[var], graph_id)
+    var_to_graphs = Dict{JuMP.VariableRef,Array{Int}}()
+    for graph_id in 1:length(user_model.graphs)
+        for arc_id in 1:length(user_model.graphs[graph_id].arcs)
+            for (var, coeff) in user_model.graphs[graph_id].arcs[arc_id].vars
+                if !haskey(var_to_graphs, var)
+                    var_to_graphs[var] = [graph_id]
+                elseif !(graph_id in var_to_graphs[var])
+                    push!(var_to_graphs[var], graph_id)
+                end
             end
-         end
-      end
-   end
-   return var_to_graphs
+        end
+    end
+    return var_to_graphs
 end
 
 function split_var_name(var)
-   var_name = name(var)
-   var_container_name = contains(var_name, "[") ? split(var_name, "[")[1] : var_name
-   var_id = contains(var_name, "[") ? split(split(var_name, "[")[2], "]")[1] : "1"
-   var_id = replace(var_id, r"\(" => s"")
-   var_id = replace(var_id, r"\)" => s"")
-   var_id = tuple([parse(Int64, x) for x in split(var_id, ",") if x != ""]...)
-   return (var_container_name, var_id)
+    var_name = name(var)
+    var_container_name = contains(var_name, "[") ? split(var_name, "[")[1] : var_name
+    var_id = contains(var_name, "[") ? split(split(var_name, "[")[2], "]")[1] : "1"
+    var_id = replace(var_id, r"\(" => s"")
+    var_id = replace(var_id, r"\)" => s"")
+    var_id = tuple([parse(Int64, x) for x in split(var_id, ",") if x != ""]...)
+    return (var_container_name, var_id)
 end
 
-function generate_pricing_networks(user_model::VrpModel, bapcod_model, optimizer_cols_info::OptimizerColsInfo)
+function generate_pricing_networks(
+    user_model::VrpModel, bapcod_model, optimizer_cols_info::OptimizerColsInfo
+)
+    c_register_subproblems(
+        bapcod_model, [(spid, :DW_SP) for spid in 0:(length(user_model.graphs) - 1)]
+    )
 
-   c_register_subproblems(bapcod_model, [(spid, :DW_SP) for spid in 0:(length(user_model.graphs)-1)])
+    for graph in user_model.graphs
+        nbPackSets = length(user_model.packing_sets)
+        nbElemSets = nbPackSets + length(graph.elem_sets)
+        nbCovSets = 0
+        if user_model.define_covering_sets
+            nbCovSets = nbPackSets
+        end
+        c_net_ptr = new_network!(
+            bapcod_model,
+            graph.id - 1,
+            :DW_SP,
+            length(graph.vertices),
+            nbPackSets,
+            nbElemSets,
+            nbCovSets,
+        )
+        wbcr_set_source(c_net_ptr, graph.source_id - 1)
+        wbcr_set_sink(c_net_ptr, graph.sink_id - 1)
 
-   for graph in user_model.graphs
-      nbPackSets = length(user_model.packing_sets)
-      nbElemSets = nbPackSets + length(graph.elem_sets)
-      nbCovSets = 0
-      if user_model.define_covering_sets
-         nbCovSets = nbPackSets
-      end
-      c_net_ptr = new_network!(bapcod_model, graph.id - 1, :DW_SP, length(graph.vertices), nbPackSets, nbElemSets, nbCovSets)
-      wbcr_set_source(c_net_ptr, graph.source_id - 1)
-      wbcr_set_sink(c_net_ptr, graph.sink_id - 1)
+        # CHECK
+        # if user_model.save_standalone != ""
+        #    save_standalone!(network, user_model.save_standalone)
+        # end
 
-      # CHECK
-      # if user_model.save_standalone != ""
-      #    save_standalone!(network, user_model.save_standalone)
-      # end
-
-      graph.net = c_net_ptr
-      #resources and vertices
-      for resource in graph.resources
-         wbcr_new_resource(c_net_ptr, resource.id - 1)
-         if resource.is_main
-            wbcr_set_as_main_resource(c_net_ptr, resource.id - 1, 0.0)
-         elseif resource.is_binary
-            wbcr_set_special_as_nondisposable_resource(c_net_ptr, resource_id_in_bapcod(resource, graph) - 1)
-         end
-         if !resource.is_disposable
-            wbcr_set_as_nondisposable_resource(c_net_ptr, resource.id - 1)
-         end
-         for vertex in graph.vertices
-            if resource.is_binary
-               res_seq_id = resource_id_in_bapcod(resource, graph)
-               wbcr_set_vertex_special_consumption_lb(
-                  c_net_ptr,
-                  vertex.id - 1,
-                  res_seq_id - 1,
-                  vertex.res_bounds[resource.id][1],
-               )
-               wbcr_set_vertex_special_consumption_ub(
-                  c_net_ptr,
-                  vertex.id - 1,
-                  res_seq_id - 1,
-                  vertex.res_bounds[resource.id][2],
-               )
-            else
-               if !haskey(vertex.res_bounds, resource.id)
-                  wbcr_set_vertex_consumption_lb(c_net_ptr, vertex.id - 1, resource.id - 1, -1e12)
-                  wbcr_set_vertex_consumption_ub(c_net_ptr, vertex.id - 1, resource.id - 1, 1e12)
-               else
-                  wbcr_set_vertex_consumption_lb(c_net_ptr, vertex.id - 1, resource.id - 1, vertex.res_bounds[resource.id][1])
-                  wbcr_set_vertex_consumption_ub(c_net_ptr, vertex.id - 1, resource.id - 1, vertex.res_bounds[resource.id][2])
-               end
+        graph.net = c_net_ptr
+        #resources and vertices
+        for resource in graph.resources
+            wbcr_new_resource(c_net_ptr, resource.id - 1)
+            if resource.is_main
+                wbcr_set_as_main_resource(c_net_ptr, resource.id - 1, 0.0)
+            elseif resource.is_binary
+                wbcr_set_special_as_nondisposable_resource(
+                    c_net_ptr, resource_id_in_bapcod(resource, graph) - 1
+                )
             end
-         end
-      end
-
-      #adding vertices to packing and elem sets
-      for vertex in graph.vertices
-         if vertex.packing_set != -1
-            wbcr_add_vertex_to_packing_set(c_net_ptr, vertex.id - 1, vertex.packing_set - 1)
-            wbcr_attach_elementarity_set_to_node(c_net_ptr, vertex.id - 1, vertex.packing_set - 1)
-            if user_model.define_covering_sets
-               wbcr_add_vertex_to_covering_set(c_net_ptr, vertex.id - 1, vertex.packing_set - 1)
+            if !resource.is_disposable
+                wbcr_set_as_nondisposable_resource(c_net_ptr, resource.id - 1)
             end
-         elseif vertex.elem_set != -1
-            wbcr_attach_elementarity_set_to_node(c_net_ptr, vertex.id - 1, vertex.elem_set - 1)
-         end
-         #defining the neighbourhood of the vertex
-         for es_id in vertex.ng_set
-            wbcr_add_vertex_to_mem_of_elementarity_set(c_net_ptr, vertex.id - 1, es_id - 1)
-         end
-      end
-      #arcs
-      for arc in graph.arcs
-         if is_preprocessed_arc(graph, arc)
-            continue
-         end
-         arc_bapcod_id = wbcr_new_arc(c_net_ptr, arc.tail - 1, arc.head - 1, 0.0)
-         graph.arc_bapcod_id_to_id[arc_bapcod_id] = arc.id
-         for resource in graph.resources
-            if resource.is_binary
-               res_seq_id = resource_id_in_bapcod(resource, graph)
-               wbcr_set_edge_special_consumption_value(
-                  c_net_ptr,
-                  arc_bapcod_id,
-                  res_seq_id - 1,
-                  arc.res_consumption[resource.id],
-               )
-            else
-               wbcr_set_edge_consumption_value(
-                  c_net_ptr,
-                  arc_bapcod_id,
-                  resource.id - 1,
-                  arc.res_consumption[resource.id],
-               )
-               wbcr_set_arc_consumption_lb(c_net_ptr,
-                  arc_bapcod_id,
-                  resource.id - 1, arc.res_bounds[resource.id][1])
-               wbcr_set_arc_consumption_ub(c_net_ptr,
-                  arc_bapcod_id,
-                  resource.id - 1, arc.res_bounds[resource.id][2])
+            for vertex in graph.vertices
+                if resource.is_binary
+                    res_seq_id = resource_id_in_bapcod(resource, graph)
+                    wbcr_set_vertex_special_consumption_lb(
+                        c_net_ptr,
+                        vertex.id - 1,
+                        res_seq_id - 1,
+                        vertex.res_bounds[resource.id][1],
+                    )
+                    wbcr_set_vertex_special_consumption_ub(
+                        c_net_ptr,
+                        vertex.id - 1,
+                        res_seq_id - 1,
+                        vertex.res_bounds[resource.id][2],
+                    )
+                else
+                    if !haskey(vertex.res_bounds, resource.id)
+                        wbcr_set_vertex_consumption_lb(
+                            c_net_ptr, vertex.id - 1, resource.id - 1, -1e12
+                        )
+                        wbcr_set_vertex_consumption_ub(
+                            c_net_ptr, vertex.id - 1, resource.id - 1, 1e12
+                        )
+                    else
+                        wbcr_set_vertex_consumption_lb(
+                            c_net_ptr,
+                            vertex.id - 1,
+                            resource.id - 1,
+                            vertex.res_bounds[resource.id][1],
+                        )
+                        wbcr_set_vertex_consumption_ub(
+                            c_net_ptr,
+                            vertex.id - 1,
+                            resource.id - 1,
+                            vertex.res_bounds[resource.id][2],
+                        )
+                    end
+                end
             end
-         end
-         # adding arc to packing_set
-         if arc.packing_set != -1
-            wbcr_add_edge_to_packing_set(c_net_ptr, arc_bapcod_id, arc.packing_set - 1)
-            wbcr_attach_elementarity_set_to_edge(c_net_ptr, arc_bapcod_id, arc.packing_set - 1)
-         elseif arc.elem_set != -1
-            wbcr_attach_elementarity_set_to_edge(c_net_ptr, arc_bapcod_id, nbPackSets + arc.elem_set - 1)
-         end
-         # defining the neighbourhood of the arc
-         for es_id in arc.ng_set
-            wbcr_add_arc_to_mem_of_elementarity_set(c_net_ptr, arc_bapcod_id, es_id - 1)
-         end
-         #arc variables
-         for (user_var, coeff) in arc.vars
-            for colid in optimizer_cols_info.uservar_to_colids[user_var]
-               if optimizer_cols_info.cols_problems[colid+1][2] == graph.id - 1
-                  wbcr_attach_bcvar_to_arc(c_net_ptr, arc_bapcod_id, bapcod_model, colid, coeff)
-               end
+        end
+
+        #adding vertices to packing and elem sets
+        for vertex in graph.vertices
+            if vertex.packing_set != -1
+                wbcr_add_vertex_to_packing_set(
+                    c_net_ptr, vertex.id - 1, vertex.packing_set - 1
+                )
+                wbcr_attach_elementarity_set_to_node(
+                    c_net_ptr, vertex.id - 1, vertex.packing_set - 1
+                )
+                if user_model.define_covering_sets
+                    wbcr_add_vertex_to_covering_set(
+                        c_net_ptr, vertex.id - 1, vertex.packing_set - 1
+                    )
+                end
+            elseif vertex.elem_set != -1
+                wbcr_attach_elementarity_set_to_node(
+                    c_net_ptr, vertex.id - 1, vertex.elem_set - 1
+                )
             end
-         end
-      end
+            #defining the neighbourhood of the vertex
+            for es_id in vertex.ng_set
+                wbcr_add_vertex_to_mem_of_elementarity_set(
+                    c_net_ptr, vertex.id - 1, es_id - 1
+                )
+            end
+        end
+        #arcs
+        for arc in graph.arcs
+            if is_preprocessed_arc(graph, arc)
+                continue
+            end
+            arc_bapcod_id = wbcr_new_arc(c_net_ptr, arc.tail - 1, arc.head - 1, 0.0)
+            graph.arc_bapcod_id_to_id[arc_bapcod_id] = arc.id
+            for resource in graph.resources
+                if resource.is_binary
+                    res_seq_id = resource_id_in_bapcod(resource, graph)
+                    wbcr_set_edge_special_consumption_value(
+                        c_net_ptr,
+                        arc_bapcod_id,
+                        res_seq_id - 1,
+                        arc.res_consumption[resource.id],
+                    )
+                else
+                    wbcr_set_edge_consumption_value(
+                        c_net_ptr,
+                        arc_bapcod_id,
+                        resource.id - 1,
+                        arc.res_consumption[resource.id],
+                    )
+                    wbcr_set_arc_consumption_lb(
+                        c_net_ptr,
+                        arc_bapcod_id,
+                        resource.id - 1,
+                        arc.res_bounds[resource.id][1],
+                    )
+                    wbcr_set_arc_consumption_ub(
+                        c_net_ptr,
+                        arc_bapcod_id,
+                        resource.id - 1,
+                        arc.res_bounds[resource.id][2],
+                    )
+                end
+            end
+            # adding arc to packing_set
+            if arc.packing_set != -1
+                wbcr_add_edge_to_packing_set(c_net_ptr, arc_bapcod_id, arc.packing_set - 1)
+                wbcr_attach_elementarity_set_to_edge(
+                    c_net_ptr, arc_bapcod_id, arc.packing_set - 1
+                )
+            elseif arc.elem_set != -1
+                wbcr_attach_elementarity_set_to_edge(
+                    c_net_ptr, arc_bapcod_id, nbPackSets + arc.elem_set - 1
+                )
+            end
+            # defining the neighbourhood of the arc
+            for es_id in arc.ng_set
+                wbcr_add_arc_to_mem_of_elementarity_set(c_net_ptr, arc_bapcod_id, es_id - 1)
+            end
+            #arc variables
+            for (user_var, coeff) in arc.vars
+                for colid in optimizer_cols_info.uservar_to_colids[user_var]
+                    if optimizer_cols_info.cols_problems[colid + 1][2] == graph.id - 1
+                        wbcr_attach_bcvar_to_arc(
+                            c_net_ptr, arc_bapcod_id, bapcod_model, colid, coeff
+                        )
+                    end
+                end
+            end
+        end
 
-      # elem sets distance matrix
-      if !isnothing(graph.es_dist_matrix)
-         wbcr_set_elementarity_sets_distance_matrix(c_net_ptr, graph.es_dist_matrix, nbElemSets)
-      end
+        # elem sets distance matrix
+        if !isnothing(graph.es_dist_matrix)
+            wbcr_set_elementarity_sets_distance_matrix(
+                c_net_ptr, graph.es_dist_matrix, nbElemSets
+            )
+        end
 
-      # #ryan and foster constraints
-      # for (ps1, ps2, tog) in user_model.ryanfoster_constraints
-      #    add_permanent_ryan_foster_constraint!(network, ps1, ps2, tog)
-      # end
+        # #ryan and foster constraints
+        # for (ps1, ps2, tog) in user_model.ryanfoster_constraints
+        #    add_permanent_ryan_foster_constraint!(network, ps1, ps2, tog)
+        # end
 
-      new_oracle!(c_net_ptr, bapcod_model, :DW_SP, graph.id - 1)
-   end
+        new_oracle!(c_net_ptr, bapcod_model, :DW_SP, graph.id - 1)
+    end
 
-   c_set_sp_multiplicities(
-      bapcod_model,
-      [
-         (spid, :DW_SP, user_model.graphs[spid+1].multiplicity...) for
-         spid in 0:(length(user_model.graphs)-1)
-      ],
-   )
+    c_set_sp_multiplicities(
+        bapcod_model,
+        [
+            (spid, :DW_SP, user_model.graphs[spid + 1].multiplicity...) for
+            spid in 0:(length(user_model.graphs) - 1)
+        ],
+    )
 end
 
 """
@@ -1238,7 +1440,7 @@ add_cut_callback!(model, edge_ub_callback, "edge_ub")
 ```
 """
 function add_cut_callback!(user_model::VrpModel, callback::Any, constr_name::String)
-   user_model.callbacks[constr_name] = callback
+    user_model.callbacks[constr_name] = callback
 end
 
 """
@@ -1260,63 +1462,76 @@ RCC separators cannot be used if the packings sets are defined on arcs.
 add_capacity_cut_separator!(model, [(PS[i], d[i]) for i in 1:n], Q) # add a RCC separator
 ```
 """
-function add_capacity_cut_separator!(model::VrpModel, demands::Array{Tuple{Array{Tuple{VrpGraph,Int},1},Float64},1}, capacity::Float64,
-   two_path_cuts_res_id::Int=-1)
-   for (ps_set, d) in demands
-      !(ps_set in model.packing_sets) && error("Collection that is not a packing set was used in a capacity cut separator." *
-                                               " Only the packing set collections can be used for add_capacity_cut_separator")
-   end
+function add_capacity_cut_separator!(
+    model::VrpModel,
+    demands::Array{Tuple{Array{Tuple{VrpGraph,Int},1},Float64},1},
+    capacity::Float64,
+    two_path_cuts_res_id::Int = -1,
+)
+    for (ps_set, d) in demands
+        !(ps_set in model.packing_sets) && error(
+            "Collection that is not a packing set was used in a capacity cut separator." *
+            " Only the packing set collections can be used for add_capacity_cut_separator",
+        )
+    end
 
-   # create and map variables to all uncovered arcs connecting packing set pairs
-   if !isempty(model.arcs_by_packing_set_pairs)
-      id_demands = [0 for i in 1:length(model.packing_sets)]
-      for (ps_set, d) in demands
-         ps_id = findall(x -> x == ps_set, model.packing_sets)
-         id_demands[ps_id[1]] = Int(d)
-      end
+    # create and map variables to all uncovered arcs connecting packing set pairs
+    if !isempty(model.arcs_by_packing_set_pairs)
+        id_demands = [0 for i in 1:length(model.packing_sets)]
+        for (ps_set, d) in demands
+            ps_id = findall(x -> x == ps_set, model.packing_sets)
+            id_demands[ps_id[1]] = Int(d)
+        end
 
-      num_missing_arcs = 0
-      uncovered = Tuple{Int,Int}[]
-      dims_psp = size(model.arcs_by_packing_set_pairs)
-      arcs_by_psp = model.arcs_by_packing_set_pairs
-      for head in 1:dims_psp[1], tail in (head+1):dims_psp[2]
-         if (id_demands[head] > 0) && (id_demands[tail] > 0) && !isempty(arcs_by_psp[head, tail])
-            push!(uncovered, (head, tail))
-            num_missing_arcs += length(arcs_by_psp[head, tail])
-         end
-      end
-      if length(uncovered) > 0
-         println("VrpSolver: adding $(length(uncovered)) internal variables mapping to ",
-            "$num_missing_arcs arcs for use by capacity cuts"
-         )
-      end
-      if num_missing_arcs > 0
-         @variable(model.formulation,
-            RCCsepX[ps_pair in uncovered], Int
-         )
-         for (head, tail) in uncovered
-            for (graph, arc) in arcs_by_psp[head, tail]
-               add_arc_var_mapping!(graph, arc.id, RCCsepX[(head, tail)])
+        num_missing_arcs = 0
+        uncovered = Tuple{Int,Int}[]
+        dims_psp = size(model.arcs_by_packing_set_pairs)
+        arcs_by_psp = model.arcs_by_packing_set_pairs
+        for head in 1:dims_psp[1], tail in (head + 1):dims_psp[2]
+            if (id_demands[head] > 0) &&
+                (id_demands[tail] > 0) &&
+                !isempty(arcs_by_psp[head, tail])
+                push!(uncovered, (head, tail))
+                num_missing_arcs += length(arcs_by_psp[head, tail])
             end
-            arcs_by_psp[head, tail] = Array{Tuple{VrpGraph,VrpArc}}(undef, 0)
-         end
-      end
-   end
+        end
+        if length(uncovered) > 0
+            println(
+                "VrpSolver: adding $(length(uncovered)) internal variables mapping to ",
+                "$num_missing_arcs arcs for use by capacity cuts",
+            )
+        end
+        if num_missing_arcs > 0
+            @variable(model.formulation, RCCsepX[ps_pair in uncovered], Int)
+            for (head, tail) in uncovered
+                for (graph, arc) in arcs_by_psp[head, tail]
+                    add_arc_var_mapping!(graph, arc.id, RCCsepX[(head, tail)])
+                end
+                arcs_by_psp[head, tail] = Array{Tuple{VrpGraph,VrpArc}}(undef, 0)
+            end
+        end
+    end
 
-   push!(model.cap_cuts_info, CapacityCutInfo(demands, capacity, two_path_cuts_res_id))
+    push!(model.cap_cuts_info, CapacityCutInfo(demands, capacity, two_path_cuts_res_id))
 end
 
 function add_capacity_cut_separators_to_optimizer(optimizer::VrpOptimizer)
-   user_model = optimizer.user_model
-   for cap_cut_info in user_model.cap_cuts_info
-      demands = [0 for i in 1:length(user_model.packing_sets)]
-      for (ps_set, d) in cap_cut_info.demands
-         ps_id = findall(x -> x == ps_set, user_model.packing_sets)
-         demands[ps_id[1]] = Int(d)
-      end
-      add_rcsp_capacity_cuts!(optimizer.formulation, Int(cap_cut_info.capacity), demands, is_facultative=false, root_priority_level=3.0,
-         two_path_cuts_res_id=cap_cut_info.two_path_cuts_res_id)
-   end
+    user_model = optimizer.user_model
+    for cap_cut_info in user_model.cap_cuts_info
+        demands = [0 for i in 1:length(user_model.packing_sets)]
+        for (ps_set, d) in cap_cut_info.demands
+            ps_id = findall(x -> x == ps_set, user_model.packing_sets)
+            demands[ps_id[1]] = Int(d)
+        end
+        add_rcsp_capacity_cuts!(
+            optimizer.formulation,
+            Int(cap_cut_info.capacity),
+            demands;
+            is_facultative = false,
+            root_priority_level = 3.0,
+            two_path_cuts_res_id = cap_cut_info.two_path_cuts_res_id,
+        )
+    end
 end
 
 """
@@ -1338,365 +1553,421 @@ SKP separators cannot be used if the packings sets are defined on arcs.
 add_capacity_cut_separator!(model, [(PS[i], d[i]) for i in 1:n], Q) # add a RCC separator
 ```
 """
-function add_strongkpath_cut_separator!(model::VrpModel, demands::Array{Tuple{Array{Tuple{VrpGraph,Int},1},Float64},1}, capacity::Float64)
-   for (ps_set, d) in demands
-      !(ps_set in model.packing_sets) && error("Collection that is not a packing set was used in a strong k-path cut separator." *
-                                               " Only the packing set collections can be used for add_strongkpath_cut_separator")
-   end
+function add_strongkpath_cut_separator!(
+    model::VrpModel,
+    demands::Array{Tuple{Array{Tuple{VrpGraph,Int},1},Float64},1},
+    capacity::Float64,
+)
+    for (ps_set, d) in demands
+        !(ps_set in model.packing_sets) && error(
+            "Collection that is not a packing set was used in a strong k-path cut separator." *
+            " Only the packing set collections can be used for add_strongkpath_cut_separator",
+        )
+    end
 
-   # create and map variables to all uncovered arcs connecting packing set pairs
-   if !isempty(model.arcs_by_packing_set_pairs)
-      id_demands = [0 for i in 1:length(model.packing_sets)]
-      for (ps_set, d) in demands
-         ps_id = findall(x -> x == ps_set, model.packing_sets)
-         id_demands[ps_id[1]] = Int(d)
-      end
+    # create and map variables to all uncovered arcs connecting packing set pairs
+    if !isempty(model.arcs_by_packing_set_pairs)
+        id_demands = [0 for i in 1:length(model.packing_sets)]
+        for (ps_set, d) in demands
+            ps_id = findall(x -> x == ps_set, model.packing_sets)
+            id_demands[ps_id[1]] = Int(d)
+        end
 
-      num_missing_arcs = 0
-      uncovered = Tuple{Int,Int}[]
-      dims_psp = size(model.arcs_by_packing_set_pairs)
-      arcs_by_psp = model.arcs_by_packing_set_pairs
-      for head in 1:dims_psp[1], tail in (head+1):dims_psp[2]
-         if (id_demands[head] > 0) && (id_demands[tail] > 0) && !isempty(arcs_by_psp[head, tail])
-            push!(uncovered, (head, tail))
-            num_missing_arcs += length(arcs_by_psp[head, tail])
-         end
-      end
-      if length(uncovered) > 0
-         println("VrpSolver: adding $(length(uncovered)) internal variables mapping to ",
-            "$num_missing_arcs arcs for use by strong k-path cuts"
-         )
-      end
-      if num_missing_arcs > 0
-         @variable(model.formulation,
-            RCCsepX[ps_pair in uncovered], Int
-         )
-         for (head, tail) in uncovered
-            for (graph, arc) in arcs_by_psp[head, tail]
-               add_arc_var_mapping!(graph, arc.id, RCCsepX[(head, tail)])
+        num_missing_arcs = 0
+        uncovered = Tuple{Int,Int}[]
+        dims_psp = size(model.arcs_by_packing_set_pairs)
+        arcs_by_psp = model.arcs_by_packing_set_pairs
+        for head in 1:dims_psp[1], tail in (head + 1):dims_psp[2]
+            if (id_demands[head] > 0) &&
+                (id_demands[tail] > 0) &&
+                !isempty(arcs_by_psp[head, tail])
+                push!(uncovered, (head, tail))
+                num_missing_arcs += length(arcs_by_psp[head, tail])
             end
-            arcs_by_psp[head, tail] = Array{Tuple{VrpGraph,VrpArc}}(undef, 0)
-         end
-      end
-   end
+        end
+        if length(uncovered) > 0
+            println(
+                "VrpSolver: adding $(length(uncovered)) internal variables mapping to ",
+                "$num_missing_arcs arcs for use by strong k-path cuts",
+            )
+        end
+        if num_missing_arcs > 0
+            @variable(model.formulation, RCCsepX[ps_pair in uncovered], Int)
+            for (head, tail) in uncovered
+                for (graph, arc) in arcs_by_psp[head, tail]
+                    add_arc_var_mapping!(graph, arc.id, RCCsepX[(head, tail)])
+                end
+                arcs_by_psp[head, tail] = Array{Tuple{VrpGraph,VrpArc}}(undef, 0)
+            end
+        end
+    end
 
-   push!(model.strongkpath_cuts_info, CapacityCutInfo(demands, capacity, -1))
+    push!(model.strongkpath_cuts_info, CapacityCutInfo(demands, capacity, -1))
 end
 
 function add_strongkpath_cut_separators_to_optimizer(optimizer::VrpOptimizer)
-   user_model = optimizer.user_model
-   for cap_cut_info in user_model.strongkpath_cuts_info
-      demands = [0 for i in 1:length(user_model.packing_sets)]
-      for (ps_set, d) in cap_cut_info.demands
-         ps_id = findall(x -> x == ps_set, user_model.packing_sets)
-         demands[ps_id[1]] = Int(d)
-      end
-      add_rcsp_strongkpath_cuts!(optimizer.formulation, Int(cap_cut_info.capacity), demands, is_facultative=false, root_priority_level=1.0)
-   end
+    user_model = optimizer.user_model
+    for cap_cut_info in user_model.strongkpath_cuts_info
+        demands = [0 for i in 1:length(user_model.packing_sets)]
+        for (ps_set, d) in cap_cut_info.demands
+            ps_id = findall(x -> x == ps_set, user_model.packing_sets)
+            demands[ps_id[1]] = Int(d)
+        end
+        add_rcsp_strongkpath_cuts!(
+            optimizer.formulation,
+            Int(cap_cut_info.capacity),
+            demands;
+            is_facultative = false,
+            root_priority_level = 1.0,
+        )
+    end
 end
 
 function get_mapped_containers_names(user_model::VrpModel)
-   user_form = user_model.formulation
-   user_var_to_graphs = extract_user_var_to_graphs(user_model)
-   user_vars = all_variables(user_form)
+    user_form = user_model.formulation
+    user_var_to_graphs = extract_user_var_to_graphs(user_model)
+    user_vars = all_variables(user_form)
 
-   names = String[]
-   for user_var in user_vars
-      (var_container_name, var_id) = split_var_name(user_var)
-      if haskey(user_var_to_graphs, user_var)
-         if !(var_container_name in names)
-            push!(names, var_container_name)
-         end
-      end
-   end
-   return names
+    names = String[]
+    for user_var in user_vars
+        (var_container_name, var_id) = split_var_name(user_var)
+        if haskey(user_var_to_graphs, user_var)
+            if !(var_container_name in names)
+                push!(names, var_container_name)
+            end
+        end
+    end
+    return names
 end
 
 function get_ignored_containers_names(user_model::VrpModel, mapped_names)
-   user_form = user_model.formulation
-   user_var_to_graphs = extract_user_var_to_graphs(user_model)
-   user_vars = all_variables(user_form)
+    user_form = user_model.formulation
+    user_var_to_graphs = extract_user_var_to_graphs(user_model)
+    user_vars = all_variables(user_form)
 
-   names = String[]
-   for user_var in user_vars
-      (var_container_name, var_id) = split_var_name(user_var)
-      if !haskey(user_var_to_graphs, user_var) #unmapped var
-         if (var_container_name in mapped_names) && !(var_container_name in names)
-            push!(names, var_container_name)
-         end
-      end
-   end
-   return names
+    names = String[]
+    for user_var in user_vars
+        (var_container_name, var_id) = split_var_name(user_var)
+        if !haskey(user_var_to_graphs, user_var) #unmapped var
+            if (var_container_name in mapped_names) && !(var_container_name in names)
+                push!(names, var_container_name)
+            end
+        end
+    end
+    return names
 end
-
-
 
 function extract_optimizer_cols_info(user_model::VrpModel)
-   user_var_to_graphs = extract_user_var_to_graphs(user_model)
-   user_form = user_model.formulation
-   mapped_names = get_mapped_containers_names(user_model)
-   uservar_to_colids = Dict{JuMP.VariableRef,Array{Int}}()
-   uservar_to_problem_type = Dict{JuMP.VariableRef,Symbol}()
-   cols_uservar = JuMP.VariableRef[]
-   cols_names = String[]
-   cols_problems = Tuple{Symbol,Int}[]
-   cols_lbs = Float64[]
-   cols_ubs = Float64[]
-   cols_costs = Float64[]
-   cols_types = Char[]
+    user_var_to_graphs = extract_user_var_to_graphs(user_model)
+    user_form = user_model.formulation
+    mapped_names = get_mapped_containers_names(user_model)
+    uservar_to_colids = Dict{JuMP.VariableRef,Array{Int}}()
+    uservar_to_problem_type = Dict{JuMP.VariableRef,Symbol}()
+    cols_uservar = JuMP.VariableRef[]
+    cols_names = String[]
+    cols_problems = Tuple{Symbol,Int}[]
+    cols_lbs = Float64[]
+    cols_ubs = Float64[]
+    cols_costs = Float64[]
+    cols_types = Char[]
 
-   nextcolid = 0
-   user_vars = all_variables(user_form)
-   for user_var in user_vars
-      (var_container_name, _) = split_var_name(user_var)
-      colsids = []
-      if !haskey(user_var_to_graphs, user_var)
-         if !(var_container_name in mapped_names) #master variable
-            push!(colsids, nextcolid)
-            push!(cols_problems, (:DW_MASTER, 0))
-            push!(cols_lbs, has_lower_bound(user_var) ? lower_bound(user_var) : -Inf)
-            push!(cols_ubs, has_upper_bound(user_var) ? upper_bound(user_var) : Inf)
-            push!(cols_names, name(user_var))
-            push!(cols_uservar, user_var)
-            push!(cols_costs, get(objective_function(user_form).terms, user_var, 0.0))
-            push!(cols_types, if is_integer(user_var)
-               'I'
-            else
-               'C'
-            end)
-            uservar_to_problem_type[user_var] = :DW_MASTER
-            nextcolid += 1
-         end
-      else
-         for graph_id in user_var_to_graphs[user_var] #subproblem variable
-            push!(colsids, nextcolid)
-            push!(cols_problems, (:DW_SP, graph_id - 1))
-            push!(cols_names, name(user_var) * "_$(graph_id-1)")
-            push!(cols_lbs, 0.0)
-            push!(cols_ubs, Inf)
-            push!(cols_uservar, user_var)
-            push!(cols_costs, get(objective_function(user_form).terms, user_var, 0.0))
-            push!(cols_types, if is_integer(user_var)
-               'I'
-            else
-               'C'
-            end)
-            nextcolid += 1
-         end
-         uservar_to_problem_type[user_var] = :DW_SP
-      end
-      if !isempty(colsids)
-         uservar_to_colids[user_var] = colsids
-      end
-   end
-   return OptimizerColsInfo(uservar_to_colids, uservar_to_problem_type, cols_uservar, cols_names, cols_problems, cols_lbs, cols_ubs, cols_costs, cols_types)
+    nextcolid = 0
+    user_vars = all_variables(user_form)
+    for user_var in user_vars
+        (var_container_name, _) = split_var_name(user_var)
+        colsids = []
+        if !haskey(user_var_to_graphs, user_var)
+            if !(var_container_name in mapped_names) #master variable
+                push!(colsids, nextcolid)
+                push!(cols_problems, (:DW_MASTER, 0))
+                push!(cols_lbs, has_lower_bound(user_var) ? lower_bound(user_var) : -Inf)
+                push!(cols_ubs, has_upper_bound(user_var) ? upper_bound(user_var) : Inf)
+                push!(cols_names, name(user_var))
+                push!(cols_uservar, user_var)
+                push!(cols_costs, get(objective_function(user_form).terms, user_var, 0.0))
+                push!(
+                    cols_types,
+                    if is_integer(user_var)
+                        'I'
+                    else
+                        'C'
+                    end,
+                )
+                uservar_to_problem_type[user_var] = :DW_MASTER
+                nextcolid += 1
+            end
+        else
+            for graph_id in user_var_to_graphs[user_var] #subproblem variable
+                push!(colsids, nextcolid)
+                push!(cols_problems, (:DW_SP, graph_id - 1))
+                push!(cols_names, name(user_var) * "_$(graph_id-1)")
+                push!(cols_lbs, 0.0)
+                push!(cols_ubs, Inf)
+                push!(cols_uservar, user_var)
+                push!(cols_costs, get(objective_function(user_form).terms, user_var, 0.0))
+                push!(
+                    cols_types,
+                    if is_integer(user_var)
+                        'I'
+                    else
+                        'C'
+                    end,
+                )
+                nextcolid += 1
+            end
+            uservar_to_problem_type[user_var] = :DW_SP
+        end
+        if !isempty(colsids)
+            uservar_to_colids[user_var] = colsids
+        end
+    end
+    return OptimizerColsInfo(
+        uservar_to_colids,
+        uservar_to_problem_type,
+        cols_uservar,
+        cols_names,
+        cols_problems,
+        cols_lbs,
+        cols_ubs,
+        cols_costs,
+        cols_types,
+    )
 end
 
-function build_optimizer_vars_and_constrs(user_model::VrpModel, bapcod_model_ptr, optimizer_cols_info::OptimizerColsInfo)
+function build_optimizer_vars_and_constrs(
+    user_model::VrpModel, bapcod_model_ptr, optimizer_cols_info::OptimizerColsInfo
+)
+    user_form = user_model.formulation
+    nconstrs = sum(
+        values(num_constraints(user_form; count_variable_in_set_constraints = false))
+    )
+    ncols = length(optimizer_cols_info.cols_problems)
+    init_model!(bapcod_model_ptr, nconstrs, ncols)
 
-   user_form = user_model.formulation
-   nconstrs = sum(values(num_constraints(user_form; count_variable_in_set_constraints=false)))
-   ncols = length(optimizer_cols_info.cols_problems)
-   init_model!(bapcod_model_ptr, nconstrs, ncols)
+    # creating variables
+    user_vars = all_variables(user_form)
+    optimizer_vars = Tuple{Symbol,Int,Symbol,Int}[]
+    user_vars = all_variables(user_form)
+    for user_var in user_vars
+        for colid in optimizer_cols_info.uservar_to_colids[user_var]
+            push!(
+                optimizer_vars,
+                (
+                    Symbol(optimizer_cols_info.cols_names[colid + 1]),
+                    colid,
+                    optimizer_cols_info.cols_problems[colid + 1]...,
+                ),
+            )
+        end
+    end
+    c_register_vars(
+        bapcod_model_ptr,
+        optimizer_cols_info.cols_lbs,
+        optimizer_cols_info.cols_ubs,
+        optimizer_cols_info.cols_costs,
+        optimizer_cols_info.cols_types,
+        optimizer_vars,
+    )
 
-   # creating variables
-   user_vars = all_variables(user_form)
-   optimizer_vars = Tuple{Symbol,Int,Symbol,Int}[]
-   user_vars = all_variables(user_form)
-   for user_var in user_vars
-      for colid in optimizer_cols_info.uservar_to_colids[user_var]
-         push!(optimizer_vars, (Symbol(optimizer_cols_info.cols_names[colid+1]), colid, optimizer_cols_info.cols_problems[colid+1]...))
-      end
-   end
-   c_register_vars(bapcod_model_ptr, optimizer_cols_info.cols_lbs, optimizer_cols_info.cols_ubs, optimizer_cols_info.cols_costs, optimizer_cols_info.cols_types, optimizer_vars)
+    constr_idx = 0
+    clbs = Float64[]
+    cubs = Float64[]
+    constrs = Tuple{Symbol,Int,Symbol,Int}[]
+    constrs_refs = ConstraintRef[]
+    for set_type in (MOI.LessThan{Float64}, MOI.GreaterThan{Float64}, MOI.EqualTo{Float64})
+        append!(constrs_refs, all_constraints(user_form, AffExpr, set_type))
+    end
 
-   constr_idx = 0
-   clbs = Float64[]
-   cubs = Float64[]
-   constrs = Tuple{Symbol,Int,Symbol,Int}[]
-   constrs_refs = ConstraintRef[]
-   for set_type in (MOI.LessThan{Float64}, MOI.GreaterThan{Float64}, MOI.EqualTo{Float64})
-      append!(constrs_refs, all_constraints(user_form, AffExpr, set_type))
-   end
-
-   for constr_ref in constrs_refs
-      set = JuMP.constraint_object(constr_ref).set
-      if set isa MathOptInterface.LessThan
-         push!(clbs, -Inf)
-         push!(cubs, set.upper)
-      elseif set isa MathOptInterface.GreaterThan
-         push!(clbs, set.lower)
-         push!(cubs, Inf)
-      elseif set isa MathOptInterface.EqualTo
-         push!(clbs, set.value)
-         push!(cubs, set.value)
-      else
-         error("Cannot recognize constraint sense.")
-      end
-      push!(constrs, (Symbol(name(constr_ref)), constr_idx, :DW_MASTER, -1))
-      constr_idx += 1
-   end
-   starts = Int[]
-   rows_id = Int[]
-   nonzeros = Float64[]
-   for user_var in user_vars
-      if haskey(optimizer_cols_info.uservar_to_colids, user_var) # var was not ignored
-         for _ in optimizer_cols_info.uservar_to_colids[user_var]
-            push!(starts, length(nonzeros))
-            for (constr_idx, constr_ref) in enumerate(constrs_refs)
-               terms = JuMP.constraint_object(constr_ref).func.terms
-               if haskey(terms, user_var)
-                  push!(rows_id, constr_idx - 1)
-                  push!(nonzeros, terms[user_var])
-               end
+    for constr_ref in constrs_refs
+        set = JuMP.constraint_object(constr_ref).set
+        if set isa MathOptInterface.LessThan
+            push!(clbs, -Inf)
+            push!(cubs, set.upper)
+        elseif set isa MathOptInterface.GreaterThan
+            push!(clbs, set.lower)
+            push!(cubs, Inf)
+        elseif set isa MathOptInterface.EqualTo
+            push!(clbs, set.value)
+            push!(cubs, set.value)
+        else
+            error("Cannot recognize constraint sense.")
+        end
+        push!(constrs, (Symbol(name(constr_ref)), constr_idx, :DW_MASTER, -1))
+        constr_idx += 1
+    end
+    starts = Int[]
+    rows_id = Int[]
+    nonzeros = Float64[]
+    for user_var in user_vars
+        if haskey(optimizer_cols_info.uservar_to_colids, user_var) # var was not ignored
+            for _ in optimizer_cols_info.uservar_to_colids[user_var]
+                push!(starts, length(nonzeros))
+                for (constr_idx, constr_ref) in enumerate(constrs_refs)
+                    terms = JuMP.constraint_object(constr_ref).func.terms
+                    if haskey(terms, user_var)
+                        push!(rows_id, constr_idx - 1)
+                        push!(nonzeros, terms[user_var])
+                    end
+                end
             end
-         end
-      end
-   end
+        end
+    end
 
-   push!(starts, length(nonzeros))
+    push!(starts, length(nonzeros))
 
-   c_register_cstrs(bapcod_model_ptr, starts, rows_id, nonzeros, clbs, cubs, constrs)
+    c_register_cstrs(bapcod_model_ptr, starts, rows_id, nonzeros, clbs, cubs, constrs)
 end
 
 function has_integer_objective(user_model::VrpModel, optimizer_cols_info::OptimizerColsInfo)
-   user_form = user_model.formulation
-   user_vars = all_variables(user_form)
-   for user_var in user_vars
-      # ignored variable
-      if isempty(optimizer_cols_info.uservar_to_colids[user_var])
-         continue
-      end
-      # checking if the coefficient in the objective function is integral
-      var_cost = get(objective_function(user_form).terms, user_var, 0.0)
-      if modf(var_cost)[1] != 0.0
-         return false
-      end
-      # checking if unmapped variables are integer
-      if optimizer_cols_info.uservar_to_problem_type[user_var] == :DW_MASTER && !is_integer(user_var)
-         return false
-      end
-   end
+    user_form = user_model.formulation
+    user_vars = all_variables(user_form)
+    for user_var in user_vars
+        # ignored variable
+        if isempty(optimizer_cols_info.uservar_to_colids[user_var])
+            continue
+        end
+        # checking if the coefficient in the objective function is integral
+        var_cost = get(objective_function(user_form).terms, user_var, 0.0)
+        if modf(var_cost)[1] != 0.0
+            return false
+        end
+        # checking if unmapped variables are integer
+        if optimizer_cols_info.uservar_to_problem_type[user_var] == :DW_MASTER &&
+            !is_integer(user_var)
+            return false
+        end
+    end
 
-   # if some variable is mapped with a non-integer coeff, return false
-   for graph in user_model.graphs
-      for arc in graph.arcs
-         for (_, coeff) in arc.vars
-            if modf(coeff)[1] != 0.0
-               return false
+    # if some variable is mapped with a non-integer coeff, return false
+    for graph in user_model.graphs
+        for arc in graph.arcs
+            for (_, coeff) in arc.vars
+                if modf(coeff)[1] != 0.0
+                    return false
+                end
             end
-         end
-      end
-   end
+        end
+    end
 
-   return true
+    return true
 end
 
-function set_branching_priorities_in_optimizer(user_model::VrpModel, bapcod_model_ptr, optimizer_cols_info::OptimizerColsInfo)
+function set_branching_priorities_in_optimizer(
+    user_model::VrpModel, bapcod_model_ptr, optimizer_cols_info::OptimizerColsInfo
+)
 
-   # var_container_name_to_probs = Dict{String,Array{Int}}()
-   # for var_container_name in keys(var_container_name_to_ids)
-   #    var_container_name_to_probs[var_container_name] = []
-   # end
-   # for (var_container_name, ids) in var_container_name_to_ids
-   #    for var_id in ids
-   #       prob = var_id[1]
-   #       if !(prob in var_container_name_to_probs[var_container_name])
-   #          push!(var_container_name_to_probs[var_container_name], prob)
-   #       end
-   #    end
-   # end
+    # var_container_name_to_probs = Dict{String,Array{Int}}()
+    # for var_container_name in keys(var_container_name_to_ids)
+    #    var_container_name_to_probs[var_container_name] = []
+    # end
+    # for (var_container_name, ids) in var_container_name_to_ids
+    #    for var_id in ids
+    #       prob = var_id[1]
+    #       if !(prob in var_container_name_to_probs[var_container_name])
+    #          push!(var_container_name_to_probs[var_container_name], prob)
+    #       end
+    #    end
+    # end
 
-   # #no subproblem branching
-   # for var_container_name in keys(var_container_name_to_ids)
-   #    for prob in var_container_name_to_probs[var_container_name]
-   #       branchingpriorityinsubproblem(formulation[Symbol(var_container_name)], (prob > 0 ? :DW_SP : :DW_MASTER, prob), -1)
-   #    end
-   # end
+    # #no subproblem branching
+    # for var_container_name in keys(var_container_name_to_ids)
+    #    for prob in var_container_name_to_probs[var_container_name]
+    #       branchingpriorityinsubproblem(formulation[Symbol(var_container_name)], (prob > 0 ? :DW_SP : :DW_MASTER, prob), -1)
+    #    end
+    # end
 
-   user_vars = all_variables(user_model.formulation)
-   for (var_container_name, prior) in user_model.branching_priorities
-      priors = Tuple{Symbol,Symbol,Int,Float64}[]
-      for user_var in user_vars
-         (container_name, _) = split_var_name(user_var)
-         if var_container_name == container_name
-            for colid in optimizer_cols_info.uservar_to_colids[user_var]
-               push!(priors, (Symbol(optimizer_cols_info.cols_names[colid+1]), optimizer_cols_info.cols_problems[colid+1]..., prior))
+    user_vars = all_variables(user_model.formulation)
+    for (var_container_name, prior) in user_model.branching_priorities
+        priors = Tuple{Symbol,Symbol,Int,Float64}[]
+        for user_var in user_vars
+            (container_name, _) = split_var_name(user_var)
+            if var_container_name == container_name
+                for colid in optimizer_cols_info.uservar_to_colids[user_var]
+                    push!(
+                        priors,
+                        (
+                            Symbol(optimizer_cols_info.cols_names[colid + 1]),
+                            optimizer_cols_info.cols_problems[colid + 1]...,
+                            prior,
+                        ),
+                    )
+                end
             end
-         end
-      end
-      if !isempty(prior)
-         c_vars_branching_priorities(bapcod_model_ptr, priors)
-      else
-         @error("VRPSolver error: setting branching priority for unexisting var container $(var_container_name)")
-      end
-   end
+        end
+        if !isempty(prior)
+            c_vars_branching_priorities(bapcod_model_ptr, priors)
+        else
+            @error(
+                "VRPSolver error: setting branching priority for unexisting var container $(var_container_name)"
+            )
+        end
+    end
 
-   # #branching in master
-   # for var_container_name in keys(var_container_name_to_ids)
-   #    probs = var_container_name_to_probs[var_container_name]
-   #    if !haskey(user_model.branching_priorities, var_container_name)
-   #       #no branching, priority = -1
-   #       for prob in probs
-   #          branchingpriorityinmaster(formulation[Symbol(var_container_name)], (prob > 0 ? :DW_SP : :DW_MASTER, prob), -1)
-   #       end
-   #    else
-   #       priority = user_model.branching_priorities[var_container_name]
-   #       if 0 in probs
-   #          branchingpriorityinmaster(formulation[Symbol(var_container_name)], (:DW_MASTER, 0), priority)
-   #       end
-   #       #now we decide if subproblem variables are aggregated or not
-   #       aggregate = (length(probs) >= 3) || (!(0 in probs) && (length(probs) >= 2))
-   #       if aggregate
-   #          addbranching(formulation, :aggrsubprob_variables, Symbol(var_container_name),
-   #             priority=priority, highest_priority=0.5, number_of_ignored_indices=1, preprocessing=false)
-   #          #if we are aggregating, we disable branching on a single variable
-   #          for prob in probs
-   #             if prob != 0
-   #                branchingpriorityinmaster(formulation[Symbol(var_container_name)], (:DW_SP, prob), -1)
-   #             end
-   #          end
-   #       else
-   #          for prob in probs
-   #             if prob != 0
-   #                branchingpriorityinmaster(formulation[Symbol(var_container_name)], (:DW_SP, prob), priority)
-   #             end
-   #          end
-   #       end
-   #    end
-   # end
+    # #branching in master
+    # for var_container_name in keys(var_container_name_to_ids)
+    #    probs = var_container_name_to_probs[var_container_name]
+    #    if !haskey(user_model.branching_priorities, var_container_name)
+    #       #no branching, priority = -1
+    #       for prob in probs
+    #          branchingpriorityinmaster(formulation[Symbol(var_container_name)], (prob > 0 ? :DW_SP : :DW_MASTER, prob), -1)
+    #       end
+    #    else
+    #       priority = user_model.branching_priorities[var_container_name]
+    #       if 0 in probs
+    #          branchingpriorityinmaster(formulation[Symbol(var_container_name)], (:DW_MASTER, 0), priority)
+    #       end
+    #       #now we decide if subproblem variables are aggregated or not
+    #       aggregate = (length(probs) >= 3) || (!(0 in probs) && (length(probs) >= 2))
+    #       if aggregate
+    #          addbranching(formulation, :aggrsubprob_variables, Symbol(var_container_name),
+    #             priority=priority, highest_priority=0.5, number_of_ignored_indices=1, preprocessing=false)
+    #          #if we are aggregating, we disable branching on a single variable
+    #          for prob in probs
+    #             if prob != 0
+    #                branchingpriorityinmaster(formulation[Symbol(var_container_name)], (:DW_SP, prob), -1)
+    #             end
+    #          end
+    #       else
+    #          for prob in probs
+    #             if prob != 0
+    #                branchingpriorityinmaster(formulation[Symbol(var_container_name)], (:DW_SP, prob), priority)
+    #             end
+    #          end
+    #       end
+    #    end
+    # end
 
-   # #now we add branching on expressions
-   # #expression families
-   # for (exp_family, name, priority) in user_model.branching_exp_families
-   #    formulation.ext[:branching_expression][Symbol(name)] = Array{Tuple{Array,Array,Array,Float64},1}() #user index, coeffs, vars, priority
-   #    for index in keys(exp_family)
-   #       varids, coeffs = [], Float64[]
-   #       for user_var_idx in 1:length(exp_family[index...].vars)
-   #          user_var = exp_family[index...].vars[user_var_idx]
-   #          coeff = exp_family[index...].coeffs[user_var_idx]
-   #          for var in user_var_to_vars[user_var]
-   #             push!(varids, Cint(var.col))
-   #             push!(coeffs, Cdouble(coeff))
-   #          end
-   #       end
-   #       push!(formulation.ext[:branching_expression][Symbol(name)], (index, coeffs, varids, float(priority)))
-   #    end
-   # end
-   # #single expressions
-   # for (exp, name, priority) in user_model.branching_exps
-   #    formulation.ext[:branching_expression][Symbol(name)] = Array{Any,1}()
-   #    varids, coeffs = [], Float64[]
-   #    for user_var_idx in 1:length(exp.vars)
-   #       user_var = exp.vars[user_var_idx]
-   #       coeff = exp.coeffs[user_var_idx]
-   #       for var in user_var_to_vars[user_var]
-   #          push!(varids, Cint(var.col))
-   #          push!(coeffs, Cdouble(coeff))
-   #       end
-   #    end
-   #    push!(formulation.ext[:branching_expression][Symbol(name)], ((1,), coeffs, varids, float(priority)))
-   # end
+    # #now we add branching on expressions
+    # #expression families
+    # for (exp_family, name, priority) in user_model.branching_exp_families
+    #    formulation.ext[:branching_expression][Symbol(name)] = Array{Tuple{Array,Array,Array,Float64},1}() #user index, coeffs, vars, priority
+    #    for index in keys(exp_family)
+    #       varids, coeffs = [], Float64[]
+    #       for user_var_idx in 1:length(exp_family[index...].vars)
+    #          user_var = exp_family[index...].vars[user_var_idx]
+    #          coeff = exp_family[index...].coeffs[user_var_idx]
+    #          for var in user_var_to_vars[user_var]
+    #             push!(varids, Cint(var.col))
+    #             push!(coeffs, Cdouble(coeff))
+    #          end
+    #       end
+    #       push!(formulation.ext[:branching_expression][Symbol(name)], (index, coeffs, varids, float(priority)))
+    #    end
+    # end
+    # #single expressions
+    # for (exp, name, priority) in user_model.branching_exps
+    #    formulation.ext[:branching_expression][Symbol(name)] = Array{Any,1}()
+    #    varids, coeffs = [], Float64[]
+    #    for user_var_idx in 1:length(exp.vars)
+    #       user_var = exp.vars[user_var_idx]
+    #       coeff = exp.coeffs[user_var_idx]
+    #       for var in user_var_to_vars[user_var]
+    #          push!(varids, Cint(var.col))
+    #          push!(coeffs, Cdouble(coeff))
+    #       end
+    #    end
+    #    push!(formulation.ext[:branching_expression][Symbol(name)], ((1,), coeffs, varids, float(priority)))
+    # end
 end
 
 """
@@ -1712,73 +1983,86 @@ Build an optimizer for a VrpModel.
 - `instance_name::String`: the instance name to be shown in the results line (line with execution statistics).
 - `baptreedot::String`: path to the file to output the BaP Tree in dot format.
 """
-function VrpOptimizer(user_model::VrpModel, param_file::String, instance_name=""; baptreedot="BaPTree.dot")
+function VrpOptimizer(
+    user_model::VrpModel, param_file::String, instance_name = ""; baptreedot = "BaPTree.dot"
+)
+    optimizer_cols_info = extract_optimizer_cols_info(user_model)
+    integer_objective = has_integer_objective(user_model, optimizer_cols_info)
 
-   optimizer_cols_info = extract_optimizer_cols_info(user_model)
-   integer_objective = has_integer_objective(user_model, optimizer_cols_info)
+    bapcod_model_ptr = new!(
+        param_file,
+        true,
+        integer_objective,
+        false, # CHECK
+        9,
+        [
+            "",
+            "--MaxNbOfStagesInColGenProcedure",
+            "3",
+            "--colGenSubProbSolMode",
+            "3",
+            "--MipSolverMultiThread",
+            "1",
+            "--ApplyStrongBranchingEvaluation",
+            "true",
+        ],
+    )
 
-   bapcod_model_ptr = new!(
-      param_file,
-      true,
-      integer_objective,
-      false, # CHECK
-      9,
-      [
-         "",
-         "--MaxNbOfStagesInColGenProcedure",
-         "3",
-         "--colGenSubProbSolMode",
-         "3",
-         "--MipSolverMultiThread",
-         "1",
-         "--ApplyStrongBranchingEvaluation",
-         "true",
-      ],
-   )
+    #creating optimizer formulation
+    build_optimizer_vars_and_constrs(user_model, bapcod_model_ptr, optimizer_cols_info)
 
-   #creating optimizer formulation
-   build_optimizer_vars_and_constrs(user_model, bapcod_model_ptr, optimizer_cols_info)
+    #creating bapcod networks
+    generate_pricing_networks(user_model, bapcod_model_ptr, optimizer_cols_info)
 
-   #creating bapcod networks
-   generate_pricing_networks(user_model, bapcod_model_ptr, optimizer_cols_info)
+    #branching priorities
+    set_branching_priorities_in_optimizer(user_model, bapcod_model_ptr, optimizer_cols_info)
 
-   #branching priorities
-   set_branching_priorities_in_optimizer(user_model, bapcod_model_ptr, optimizer_cols_info)
+    if user_model.use_rank1_cuts
+        wbc_add_generic_lim_mem_one_cut(bapcod_model_ptr)
+    end
 
-   if user_model.use_rank1_cuts
-      wbc_add_generic_lim_mem_one_cut(bapcod_model_ptr)
-   end
+    if haskey(user_model.branching_priorities, "_res_cons_branching_")
+        priority = user_model.branching_priorities["_res_cons_branching_"]
+        c_add_elemset_resource_cons_branching(bapcod_model_ptr, priority)
+    end
+    if haskey(user_model.branching_priorities, "_ryanfoster_branching_")
+        priority = user_model.branching_priorities["_ryanfoster_branching_"]
+        c_add_packset_ryan_and_foster_branching(bapcod_model_ptr, priority)
+    end
 
-   if haskey(user_model.branching_priorities, "_res_cons_branching_")
-      priority = user_model.branching_priorities["_res_cons_branching_"]
-      c_add_elemset_resource_cons_branching(bapcod_model_ptr, priority)
-   end
-   if haskey(user_model.branching_priorities, "_ryanfoster_branching_")
-      priority = user_model.branching_priorities["_ryanfoster_branching_"]
-      c_add_packset_ryan_and_foster_branching(bapcod_model_ptr, priority)
-   end
+    mapped_names = get_mapped_containers_names(user_model)
+    ignored_names = get_ignored_containers_names(user_model, mapped_names)
+    for name in ignored_names
+        println(
+            "VRPSolver warning: unmapped $name vars were ignored because there are mapped $name vars",
+        )
+        flush(stdout)
+    end
 
-   mapped_names = get_mapped_containers_names(user_model)
-   ignored_names = get_ignored_containers_names(user_model, mapped_names)
-   for name in ignored_names
-      println("VRPSolver warning: unmapped $name vars were ignored because there are mapped $name vars")
-      flush(stdout)
-   end
+    optimizer = VrpOptimizer(
+        user_model,
+        bapcod_model_ptr,
+        param_file,
+        instance_name,
+        Dict{String,CallbackInfo}(),
+        Tuple{Int,Dict{JuMP.VariableRef,Float64}}[],
+        Dict{JuMP.VariableRef,Float64}(),
+        integer_objective,
+        -1,
+        mapped_names,
+        ignored_names,
+        Dict(),
+        baptreedot,
+        optimizer_cols_info,
+    )
+    user_model.optimizer = optimizer
 
-   optimizer = VrpOptimizer(user_model, bapcod_model_ptr, param_file, instance_name,
-      Dict{String,CallbackInfo}(),
-      Tuple{Int,Dict{JuMP.VariableRef,Float64}}[],
-      Dict{JuMP.VariableRef,Float64}(),
-      integer_objective, -1,
-      mapped_names, ignored_names, Dict(), baptreedot, optimizer_cols_info)
-   user_model.optimizer = optimizer
+    # CHECK
+    # add_callbacks_to_optimizer(optimizer)
+    # add_capacity_cut_separators_to_optimizer(optimizer)
+    # add_strongkpath_cut_separators_to_optimizer(optimizer)
 
-   # CHECK
-   # add_callbacks_to_optimizer(optimizer)
-   # add_capacity_cut_separators_to_optimizer(optimizer)
-   # add_strongkpath_cut_separators_to_optimizer(optimizer)
-
-   return optimizer
+    return optimizer
 end
 
 """
@@ -1796,120 +2080,119 @@ optimizer = VrpOptimizer(model, "path_to_config/config.cfg")
 ```
 """
 function JuMP.optimize!(optimizer::VrpOptimizer)
+    sol_ptr = new_sol!()
+    c_optimize(optimizer.bapcod_model, sol_ptr)
 
-   sol_ptr = new_sol!()
-   c_optimize(optimizer.bapcod_model, sol_ptr)
+    # optimizer.formulation.solver = BaPCodSolver(
+    #    param_file=optimizer.param_file,
+    #    integer_objective=optimizer.integer_objective, baptreedot_file=optimizer.baptreedot_file,
+    #    user_params="--MaxNbOfStagesInColGenProcedure 3 --colGenSubProbSolMode 3 --MipSolverMultiThread 1 --ApplyStrongBranchingEvaluation true")
+    has_solution = register_solutions(optimizer, sol_ptr)
 
-   # optimizer.formulation.solver = BaPCodSolver(
-   #    param_file=optimizer.param_file,
-   #    integer_objective=optimizer.integer_objective, baptreedot_file=optimizer.baptreedot_file,
-   #    user_params="--MaxNbOfStagesInColGenProcedure 3 --colGenSubProbSolMode 3 --MipSolverMultiThread 1 --ApplyStrongBranchingEvaluation true")
-   has_solution = register_solutions(optimizer, sol_ptr)
+    # println("statistics_cols: instance & :Optimal & cutoff & :bcRecRootDb & :bcTimeRootEval & :bcCountNodeProc & :bcRecBestDb & :bcRecBestInc & :bcTimeMain \\\\")
+    # print("statistics: $(optimizer.instance_name) & ")
+    # print("$(status == :Optimal ? 1 : 0) & ")
+    # print("$(optimizer.initUB) & ")
+    # @printf("%.2f & ", getstatistic(optimizer.formulation, :bcRecRootDb))
+    # @printf("%.2f & ", getstatistic(optimizer.formulation, :bcTimeRootEval) / 100)
+    # print("$(getstatistic(optimizer.formulation, :bcCountNodeProc)) & ")
+    # @printf("%.2f & ", getstatistic(optimizer.formulation, :bcRecBestDb))
+    # if has_solution
+    #    if optimizer.integer_objective
+    #       print("$(Int(floor(getstatistic(optimizer.formulation, :bcRecBestInc) + 0.5))) & ")
+    #    else
+    #       @printf("%.2f & ", getstatistic(optimizer.formulation, :bcRecBestInc))
+    #    end
+    #    optimizer.stats[:bcRecBestInc] = getstatistic(optimizer.formulation, :bcRecBestInc)
+    # else
+    #    print("-- & ")
+    # end
+    # @printf("%.2f \\\\\n", getstatistic(optimizer.formulation, :bcTimeMain) / 100)
+    # flush(stdout)
 
-   # println("statistics_cols: instance & :Optimal & cutoff & :bcRecRootDb & :bcTimeRootEval & :bcCountNodeProc & :bcRecBestDb & :bcRecBestInc & :bcTimeMain \\\\")
-   # print("statistics: $(optimizer.instance_name) & ")
-   # print("$(status == :Optimal ? 1 : 0) & ")
-   # print("$(optimizer.initUB) & ")
-   # @printf("%.2f & ", getstatistic(optimizer.formulation, :bcRecRootDb))
-   # @printf("%.2f & ", getstatistic(optimizer.formulation, :bcTimeRootEval) / 100)
-   # print("$(getstatistic(optimizer.formulation, :bcCountNodeProc)) & ")
-   # @printf("%.2f & ", getstatistic(optimizer.formulation, :bcRecBestDb))
-   # if has_solution
-   #    if optimizer.integer_objective
-   #       print("$(Int(floor(getstatistic(optimizer.formulation, :bcRecBestInc) + 0.5))) & ")
-   #    else
-   #       @printf("%.2f & ", getstatistic(optimizer.formulation, :bcRecBestInc))
-   #    end
-   #    optimizer.stats[:bcRecBestInc] = getstatistic(optimizer.formulation, :bcRecBestInc)
-   # else
-   #    print("-- & ")
-   # end
-   # @printf("%.2f \\\\\n", getstatistic(optimizer.formulation, :bcTimeMain) / 100)
-   # flush(stdout)
+    # optimizer.stats[:bcRecRootDb] = getstatistic(optimizer.formulation, :bcRecRootDb)
+    # optimizer.stats[:bcTimeRootEval] = getstatistic(optimizer.formulation, :bcTimeRootEval)
+    # optimizer.stats[:bcCountNodeProc] = getstatistic(optimizer.formulation, :bcCountNodeProc)
+    # optimizer.stats[:bcRecBestDb] = getstatistic(optimizer.formulation, :bcRecBestDb)
+    # optimizer.stats[:bcTimeMain] = getstatistic(optimizer.formulation, :bcTimeMain)
+    # optimizer.stats[:bcCountMastSol] = getstatistic(optimizer.formulation, :bcCountMastSol)
+    # optimizer.stats[:bcCountCol] = getstatistic(optimizer.formulation, :bcCountCol)
+    # optimizer.stats[:bcCountCutInMaster] = getstatistic(optimizer.formulation, :bcCountCutInMaster)
+    # optimizer.stats[:bcTimeMastMPsol] = getstatistic(optimizer.formulation, :bcTimeMastMPsol)
+    # optimizer.stats[:bcTimeCgSpOracle] = getstatistic(optimizer.formulation, :bcTimeCgSpOracle)
+    # optimizer.stats[:bcTimeCutSeparation] = getstatistic(optimizer.formulation, :bcTimeCutSeparation)
+    # optimizer.stats[:bcTimeAddCutToMaster] = getstatistic(optimizer.formulation, :bcTimeAddCutToMaster)
+    # optimizer.stats[:bcTimeSetMast] = getstatistic(optimizer.formulation, :bcTimeSetMast)
+    # optimizer.stats[:bcTimeRedCostFixAndEnum] = getstatistic(optimizer.formulation, :bcTimeRedCostFixAndEnum)
+    # optimizer.stats[:bcTimeEnumMPsol] = getstatistic(optimizer.formulation, :bcTimeEnumMPsol)
+    # optimizer.stats[:bcTimeSBphase1] = getstatistic(optimizer.formulation, :bcTimeSBphase1)
+    # optimizer.stats[:bcTimeSBphase2] = getstatistic(optimizer.formulation, :bcTimeSBphase2)
+    # optimizer.stats[:bcTimePrimalHeur] = getstatistic(optimizer.formulation, :bcTimePrimalHeur)
 
-   # optimizer.stats[:bcRecRootDb] = getstatistic(optimizer.formulation, :bcRecRootDb)
-   # optimizer.stats[:bcTimeRootEval] = getstatistic(optimizer.formulation, :bcTimeRootEval)
-   # optimizer.stats[:bcCountNodeProc] = getstatistic(optimizer.formulation, :bcCountNodeProc)
-   # optimizer.stats[:bcRecBestDb] = getstatistic(optimizer.formulation, :bcRecBestDb)
-   # optimizer.stats[:bcTimeMain] = getstatistic(optimizer.formulation, :bcTimeMain)
-   # optimizer.stats[:bcCountMastSol] = getstatistic(optimizer.formulation, :bcCountMastSol)
-   # optimizer.stats[:bcCountCol] = getstatistic(optimizer.formulation, :bcCountCol)
-   # optimizer.stats[:bcCountCutInMaster] = getstatistic(optimizer.formulation, :bcCountCutInMaster)
-   # optimizer.stats[:bcTimeMastMPsol] = getstatistic(optimizer.formulation, :bcTimeMastMPsol)
-   # optimizer.stats[:bcTimeCgSpOracle] = getstatistic(optimizer.formulation, :bcTimeCgSpOracle)
-   # optimizer.stats[:bcTimeCutSeparation] = getstatistic(optimizer.formulation, :bcTimeCutSeparation)
-   # optimizer.stats[:bcTimeAddCutToMaster] = getstatistic(optimizer.formulation, :bcTimeAddCutToMaster)
-   # optimizer.stats[:bcTimeSetMast] = getstatistic(optimizer.formulation, :bcTimeSetMast)
-   # optimizer.stats[:bcTimeRedCostFixAndEnum] = getstatistic(optimizer.formulation, :bcTimeRedCostFixAndEnum)
-   # optimizer.stats[:bcTimeEnumMPsol] = getstatistic(optimizer.formulation, :bcTimeEnumMPsol)
-   # optimizer.stats[:bcTimeSBphase1] = getstatistic(optimizer.formulation, :bcTimeSBphase1)
-   # optimizer.stats[:bcTimeSBphase2] = getstatistic(optimizer.formulation, :bcTimeSBphase2)
-   # optimizer.stats[:bcTimePrimalHeur] = getstatistic(optimizer.formulation, :bcTimePrimalHeur)
-
-   # return status, has_solution
-   return 0, has_solution
+    # return status, has_solution
+    return 0, has_solution
 end
 
 function register_solutions(optimizer::VrpOptimizer, bapcodsol)
-   bapcod_model = optimizer.bapcod_model
-   user_vars = all_variables(optimizer.user_model.formulation)
-   spsols_in_sol = SpSol[]
-   optimizer_cols_info = optimizer.optimizer_cols_info
-   unmapped_vars_in_sol = Dict{JuMP.VariableRef,Float64}()
+    bapcod_model = optimizer.bapcod_model
+    user_vars = all_variables(optimizer.user_model.formulation)
+    spsols_in_sol = SpSol[]
+    optimizer_cols_info = optimizer.optimizer_cols_info
+    unmapped_vars_in_sol = Dict{JuMP.VariableRef,Float64}()
 
-   # computing sp sols
-   c_start(bapcodsol, bapcod_model)
-   status = c_next(bapcodsol) # ignore master solution
-   while status == 1
-      subproblem_id = Int(c_getProblemFirstId(bapcodsol))
-      mult = c_getMultiplicity(bapcodsol)
-      graph = optimizer.user_model.graphs[subproblem_id+1]
-      spsol = SpSol(graph.id, mult, Dict{JuMP.VariableRef,Float64}(), VrpArc[])
+    # computing sp sols
+    c_start(bapcodsol, bapcod_model)
+    status = c_next(bapcodsol) # ignore master solution
+    while status == 1
+        subproblem_id = Int(c_getProblemFirstId(bapcodsol))
+        mult = c_getMultiplicity(bapcodsol)
+        graph = optimizer.user_model.graphs[subproblem_id + 1]
+        spsol = SpSol(graph.id, mult, Dict{JuMP.VariableRef,Float64}(), VrpArc[])
 
-      # computing the values of user vars in the subproblem sol
-      for user_var in user_vars
-         if optimizer_cols_info.uservar_to_problem_type[user_var] == :DW_MASTER
-            continue
-         end
-         user_var_val = 0.0
-         for colid in optimizer_cols_info.uservar_to_colids[user_var]
-            if optimizer_cols_info.cols_problems[colid+1][2] == subproblem_id
-               user_var_val += c_getValueOfVar(bapcod_model, bapcodsol, colid)
+        # computing the values of user vars in the subproblem sol
+        for user_var in user_vars
+            if optimizer_cols_info.uservar_to_problem_type[user_var] == :DW_MASTER
+                continue
             end
-         end
-         if user_var_val > 0
-            spsol.user_vars_in_sol[user_var] = user_var_val
-         end
-      end
+            user_var_val = 0.0
+            for colid in optimizer_cols_info.uservar_to_colids[user_var]
+                if optimizer_cols_info.cols_problems[colid + 1][2] == subproblem_id
+                    user_var_val += c_getValueOfVar(bapcod_model, bapcodsol, colid)
+                end
+            end
+            if user_var_val > 0
+                spsol.user_vars_in_sol[user_var] = user_var_val
+            end
+        end
 
-      # retrieving the sequence of arcs
-      arcs_bapcod_ids = c_getArcs(bapcodsol)
-      for arc_bap_id in arcs_bapcod_ids
-         arc_id = graph.arc_bapcod_id_to_id[arc_bap_id]
-         push!(spsol.arc_seq, graph.arcs[arc_id])
-      end
+        # retrieving the sequence of arcs
+        arcs_bapcod_ids = c_getArcs(bapcodsol)
+        for arc_bap_id in arcs_bapcod_ids
+            arc_id = graph.arc_bapcod_id_to_id[arc_bap_id]
+            push!(spsol.arc_seq, graph.arcs[arc_id])
+        end
 
-      push!(spsols_in_sol, spsol)
-      status = c_next(bapcodsol)
-   end
+        push!(spsols_in_sol, spsol)
+        status = c_next(bapcodsol)
+    end
 
-   optimizer.spsols_in_sol = spsols_in_sol
-   if length(spsols_in_sol) == 0
-      optimizer.unmapped_vars_in_sol = unmapped_vars_in_sol
-      return false
-   end
+    optimizer.spsols_in_sol = spsols_in_sol
+    if length(spsols_in_sol) == 0
+        optimizer.unmapped_vars_in_sol = unmapped_vars_in_sol
+        return false
+    end
 
-   # getting unmapped vars values
-   c_start(bapcodsol, bapcod_model)
-   for user_var in user_vars
-      if optimizer_cols_info.uservar_to_problem_type[user_var] == :DW_MASTER
-         colid = optimizer_cols_info.uservar_to_colids[user_var][1]
-         unmapped_vars_in_sol[user_var] = c_getValueOfVar(bapcod_model, bapcodsol, colid)
-      end
-   end
-   optimizer.unmapped_vars_in_sol = unmapped_vars_in_sol
+    # getting unmapped vars values
+    c_start(bapcodsol, bapcod_model)
+    for user_var in user_vars
+        if optimizer_cols_info.uservar_to_problem_type[user_var] == :DW_MASTER
+            colid = optimizer_cols_info.uservar_to_colids[user_var][1]
+            unmapped_vars_in_sol[user_var] = c_getValueOfVar(bapcod_model, bapcodsol, colid)
+        end
+    end
+    optimizer.unmapped_vars_in_sol = unmapped_vars_in_sol
 
-   return true
+    return true
 end
 
 """
@@ -1919,14 +2202,14 @@ Set an upper bound (primal bound) for the execution.
 
 """
 function set_cutoff!(optimizer::VrpOptimizer, ub::Float64)
-   set_obj_ub!(optimizer.bapcod_model, ub)
-   optimizer.initUB = ub
-   absolute_ub = abs(ub)
-   if (absolute_ub < 10000.0)
-      set_art_cost_value!(optimizer.bapcod_model, 10000.0)
-   else
-      set_art_cost_value!(optimizer.bapcod_model, absolute_ub)
-   end
+    set_obj_ub!(optimizer.bapcod_model, ub)
+    optimizer.initUB = ub
+    absolute_ub = abs(ub)
+    if (absolute_ub < 10000.0)
+        set_art_cost_value!(optimizer.bapcod_model, 10000.0)
+    else
+        set_art_cost_value!(optimizer.bapcod_model, absolute_ub)
+    end
 end
 set_cutoff!(optimizer::VrpOptimizer, ub::Int) = set_cutoff!(optimizer, Float64(ub))
 
@@ -1937,20 +2220,20 @@ Get the objective function value after optimization.
 
 """
 function get_objective_value(optimizer::VrpOptimizer)
-   user_form = optimizer.user_model.formulation
-   user_vars = all_variables(user_form)
-   obj_value = 0.0
-   for user_var in user_vars
-      obj_coeff = get(objective_function(user_form).terms, user_var, 0.0)
-      var_val = get_value(optimizer, user_var)
-      obj_value += obj_coeff * var_val
-   end
-   # CHECK: is this really needed?
-   if optimizer.integer_objective
-      return round(obj_value)
-   else
-      return obj_value
-   end
+    user_form = optimizer.user_model.formulation
+    user_vars = all_variables(user_form)
+    obj_value = 0.0
+    for user_var in user_vars
+        obj_coeff = get(objective_function(user_form).terms, user_var, 0.0)
+        var_val = get_value(optimizer, user_var)
+        obj_value += obj_coeff * var_val
+    end
+    # CHECK: is this really needed?
+    if optimizer.integer_objective
+        return round(obj_value)
+    else
+        return obj_value
+    end
 end
 
 """
@@ -1960,16 +2243,16 @@ Get the value for a decision variable after optimization.
 
 """
 function get_value(optimizer::VrpOptimizer, user_var::JuMP.VariableRef)
-   optimizer_cols_info = optimizer.optimizer_cols_info
-   if optimizer_cols_info.uservar_to_problem_type[user_var] == :DW_MASTER
-      return get(optimizer.unmapped_vars_in_sol, user_var, 0.0)
-   else
-      val = 0.0
-      for path_id in 1:length(optimizer.spsols_in_sol)
-         val += get_value(optimizer, user_var, path_id)
-      end
-      return val
-   end
+    optimizer_cols_info = optimizer.optimizer_cols_info
+    if optimizer_cols_info.uservar_to_problem_type[user_var] == :DW_MASTER
+        return get(optimizer.unmapped_vars_in_sol, user_var, 0.0)
+    else
+        val = 0.0
+        for path_id in 1:length(optimizer.spsols_in_sol)
+            val += get_value(optimizer, user_var, path_id)
+        end
+        return val
+    end
 end
 
 """
@@ -1980,7 +2263,7 @@ Get the values for an array of decision variables after optimization.
 
 """
 function get_values(optimizer::VrpOptimizer, user_vars::Array{JuMP.VariableRef})
-   return [get_value(optimizer, user_var) for user_var in user_vars]
+    return [get_value(optimizer, user_var) for user_var in user_vars]
 end
 
 """
@@ -1991,7 +2274,7 @@ Get the value for a decision variable due to a specific path.
 `path_id` shoul be a value between 1 and the number of positive paths.
 """
 function get_value(optimizer::VrpOptimizer, user_var::JuMP.VariableRef, path_id::Int)
-   return get(optimizer.spsols_in_sol[path_id].user_vars_in_sol, user_var, 0.0)
+    return get(optimizer.spsols_in_sol[path_id].user_vars_in_sol, user_var, 0.0)
 end
 
 """
@@ -2001,10 +2284,10 @@ Get the value for a path variable (λ variable created internally due to the map
 
 """
 function get_value(optimizer::VrpOptimizer, path_id::Int)
-   if 1 <= path_id <= length(optimizer.spsols_in_sol)
-      return optimizer.spsols_in_sol[path_id][1]
-   end
-   return 0.0
+    if 1 <= path_id <= length(optimizer.spsols_in_sol)
+        return optimizer.spsols_in_sol[path_id][1]
+    end
+    return 0.0
 end
 
 """
@@ -2014,8 +2297,10 @@ Get the values for an array of decision variables that would be obtained from ma
 Necessary for identifying which paths are part of the solution in some models.
 
 """
-function get_values(optimizer::VrpOptimizer, user_vars::Array{JuMP.VariableRef}, path_id::Int)
-   return [get_value(optimizer, user_var, path_id) for user_var in user_vars]
+function get_values(
+    optimizer::VrpOptimizer, user_vars::Array{JuMP.VariableRef}, path_id::Int
+)
+    return [get_value(optimizer, user_var, path_id) for user_var in user_vars]
 end
 
 """
@@ -2026,7 +2311,7 @@ of retrieving the value of the lambda variables and for identifying the path.
 
 """
 function get_number_of_positive_paths(optimizer::VrpOptimizer)
-   return length(optimizer.spsols_in_sol)
+    return length(optimizer.spsols_in_sol)
 end
 
 """
@@ -2036,13 +2321,13 @@ Returns a tuple where the first element is the `VrpGraph` and the second element
 
 """
 function get_path_arcs(optimizer::VrpOptimizer, path_id::Int)
-   if !(1 <= path_id <= length(optimizer.spsols_in_sol))
-      @error "VrpSolver error: invalid path id"
-   end
+    if !(1 <= path_id <= length(optimizer.spsols_in_sol))
+        @error "VrpSolver error: invalid path id"
+    end
 
-   spsol = optimizer.spsols_in_sol[path_id]
-   graph = optimizer.user_model.graphs[spsol.graph_id]
-   return (graph, spsol.arc_seq)
+    spsol = optimizer.spsols_in_sol[path_id]
+    graph = optimizer.user_model.graphs[spsol.graph_id]
+    return (graph, spsol.arc_seq)
 end
 
 """
@@ -2070,10 +2355,12 @@ end
 add_cut_callback!(model, my_callback, "my_callback")
 ```
 """
-function add_dynamic_constr!(optimizer::VrpOptimizer, vars, coeffs, sense, rhs, constr_name::String)
-   constr_info = DynamicConstrInfo(vars, coeffs, sense, rhs)
-   push!(optimizer.callbacks[constr_name].to_add_constrs, constr_info)
-   optimizer.callbacks[constr_name].nb_added_constrs += 1
+function add_dynamic_constr!(
+    optimizer::VrpOptimizer, vars, coeffs, sense, rhs, constr_name::String
+)
+    constr_info = DynamicConstrInfo(vars, coeffs, sense, rhs)
+    push!(optimizer.callbacks[constr_name].to_add_constrs, constr_info)
+    optimizer.callbacks[constr_name].nb_added_constrs += 1
 end
 
 """
@@ -2083,94 +2370,110 @@ Show a VrpGraph.
 
 """
 function show(io::IO, graph::VrpGraph)
-   println(io, "===== Graph $(graph.id) =====")
-   println(io, "L=$(graph.multiplicity[1]) U=$(graph.multiplicity[2])")
-   println(io, "Resources")
-   for r in graph.resources
-      println(io, "$(r.id) $(r.is_main ? "main" : "secondary") $(r.is_disposable ? "disposable" : "non-disposable") $(r.is_binary ? "binary" : "")  $(r.is_automatic ? "automatic" : "")")
-   end
-   bin_res_legend = length(graph.vertices[1].res_bounds) > 0 ? "\nid (bin1, [lb_bin1,ub_bin1]) (bin2, [lb_bin2,ub_bin2]) ... (consumption interval for each binary resource)" : ""
-   println(io, "Nodes$(bin_res_legend)")
-   for v in graph.vertices
-      if graph.cycle_problem && v.id == graph.sink_id
-         continue
-      end
-      print(io, "$(v.user_id) ")
-      for (i, rb) in enumerate(sort(collect(keys(v.res_bounds))))
-         print(io, "($rb, [$(v.res_bounds[rb][1]),$(v.res_bounds[rb][2])]) ")
-      end
-      println(io)
-   end
-   println(io, "Arcs\n(i,j) arc_id consumption_res1 consumption_res2 ... (consumption interval for each non-binary resource) [list of mapped variables]")
-   net_vertex_id_map = Dict(value => key for (key, value) in graph.user_vertex_id_map) # from user_id to net_id
-   for a in graph.arcs
-      i = net_vertex_id_map[a.tail]
-      j = (graph.cycle_problem && a.head == graph.sink_id) ? net_vertex_id_map[graph.source_id] : net_vertex_id_map[a.head]
-      print(io, "($i,$j) $(a.id) ")
-      for rc in a.res_consumption
-         print(io, "$rc ")
-      end
-      print(io, "(")
-      for r in 1:length(a.res_consumption)
-         if !haskey(a.res_bounds, r)
-            print(io, "[,] ")
-         else
-            (lb, ub) = a.res_bounds[r]
-            print(io, "[$lb, $ub] ")
-         end
-      end
-      print(io, ") [")
-      for (id, mv) in enumerate(a.vars)
-         coeff = mv[2] != 1 ? "$(mv[2])*" : ""
-         if id < length(a.vars)
-            print(io, string(coeff * "$(mv[1]),"))
-         else
-            print(io, string(coeff * "$(mv[1])"))
-         end
-      end
-      print(io, "]\n")
-   end
-   println(io, "====================")
-   flush(stdout)
+    println(io, "===== Graph $(graph.id) =====")
+    println(io, "L=$(graph.multiplicity[1]) U=$(graph.multiplicity[2])")
+    println(io, "Resources")
+    for r in graph.resources
+        println(
+            io,
+            "$(r.id) $(r.is_main ? "main" : "secondary") $(r.is_disposable ? "disposable" : "non-disposable") $(r.is_binary ? "binary" : "")  $(r.is_automatic ? "automatic" : "")",
+        )
+    end
+    bin_res_legend = if length(graph.vertices[1].res_bounds) > 0
+        "\nid (bin1, [lb_bin1,ub_bin1]) (bin2, [lb_bin2,ub_bin2]) ... (consumption interval for each binary resource)"
+    else
+        ""
+    end
+    println(io, "Nodes$(bin_res_legend)")
+    for v in graph.vertices
+        if graph.cycle_problem && v.id == graph.sink_id
+            continue
+        end
+        print(io, "$(v.user_id) ")
+        for (i, rb) in enumerate(sort(collect(keys(v.res_bounds))))
+            print(io, "($rb, [$(v.res_bounds[rb][1]),$(v.res_bounds[rb][2])]) ")
+        end
+        println(io)
+    end
+    println(
+        io,
+        "Arcs\n(i,j) arc_id consumption_res1 consumption_res2 ... (consumption interval for each non-binary resource) [list of mapped variables]",
+    )
+    net_vertex_id_map = Dict(value => key for (key, value) in graph.user_vertex_id_map) # from user_id to net_id
+    for a in graph.arcs
+        i = net_vertex_id_map[a.tail]
+        j = if (graph.cycle_problem && a.head == graph.sink_id)
+            net_vertex_id_map[graph.source_id]
+        else
+            net_vertex_id_map[a.head]
+        end
+        print(io, "($i,$j) $(a.id) ")
+        for rc in a.res_consumption
+            print(io, "$rc ")
+        end
+        print(io, "(")
+        for r in 1:length(a.res_consumption)
+            if !haskey(a.res_bounds, r)
+                print(io, "[,] ")
+            else
+                (lb, ub) = a.res_bounds[r]
+                print(io, "[$lb, $ub] ")
+            end
+        end
+        print(io, ") [")
+        for (id, mv) in enumerate(a.vars)
+            coeff = mv[2] != 1 ? "$(mv[2])*" : ""
+            if id < length(a.vars)
+                print(io, string(coeff * "$(mv[1]),"))
+            else
+                print(io, string(coeff * "$(mv[1])"))
+            end
+        end
+        print(io, "]\n")
+    end
+    println(io, "====================")
+    flush(stdout)
 end
 
 function get_enum_paths(model::VrpModel, paramfile::String)
-   optimizer = VrpOptimizer(model, paramfile, "")
-   optimizer.formulation.ext[:complete_formulation] = true
-   optimizer.formulation.solver = BaPCodSolver(
-      param_file=optimizer.param_file,
-      integer_objective=optimizer.integer_objective, baptreedot_file=optimizer.baptreedot_file,
-      user_params="--MaxNbOfStagesInColGenProcedure 3 --colGenSubProbSolMode 3 --MipSolverMultiThread 1 --ApplyStrongBranchingEvaluation true")
-   solve(optimizer.formulation)
-   paths = []
-   bcsol = BaPCod.new!()
-   nb = BaPCod.getenumeratedcols(optimizer.formulation.internalModel.inner, bcsol)
-   status = BaPCod.getnextsolution(bcsol)
-   while status == 1
-      graph_id = BaPCod.c_get_prob_first_id(bcsol)
-      bapcodarcids = BaPCod.c_get_sol_arcs_ids(bcsol)
-      graph = model.graphs[graph_id]
-      path = Int[]
-      for bid in bapcodarcids
-         rcsp_id = graph.net.bcid_2pos[bid]
-         arc_id = graph.arc_bapcod_id_to_id[rcsp_id]
-         push!(path, arc_id)
-      end
-      push!(paths, (graph, path))
-      status = BaPCod.getnextsolution(bcsol)
-   end
-   return paths
+    optimizer = VrpOptimizer(model, paramfile, "")
+    optimizer.formulation.ext[:complete_formulation] = true
+    optimizer.formulation.solver = BaPCodSolver(;
+        param_file = optimizer.param_file,
+        integer_objective = optimizer.integer_objective,
+        baptreedot_file = optimizer.baptreedot_file,
+        user_params = "--MaxNbOfStagesInColGenProcedure 3 --colGenSubProbSolMode 3 --MipSolverMultiThread 1 --ApplyStrongBranchingEvaluation true",
+    )
+    solve(optimizer.formulation)
+    paths = []
+    bcsol = BaPCod.new!()
+    nb = BaPCod.getenumeratedcols(optimizer.formulation.internalModel.inner, bcsol)
+    status = BaPCod.getnextsolution(bcsol)
+    while status == 1
+        graph_id = BaPCod.c_get_prob_first_id(bcsol)
+        bapcodarcids = BaPCod.c_get_sol_arcs_ids(bcsol)
+        graph = model.graphs[graph_id]
+        path = Int[]
+        for bid in bapcodarcids
+            rcsp_id = graph.net.bcid_2pos[bid]
+            arc_id = graph.arc_bapcod_id_to_id[rcsp_id]
+            push!(path, arc_id)
+        end
+        push!(paths, (graph, path))
+        status = BaPCod.getnextsolution(bcsol)
+    end
+    return paths
 end
 
 function print_enum_paths(model::VrpModel, paramfile::String)
-   paths = get_enum_paths(model, paramfile)
-   for (id, (graph, arcs)) in enumerate(paths)
-      print("path $(id) graph $(graph.id): ")
-      for arcid in arcs
-         print(arcid, " ")
-      end
-      println()
-   end
+    paths = get_enum_paths(model, paramfile)
+    for (id, (graph, arcs)) in enumerate(paths)
+        print("path $(id) graph $(graph.id): ")
+        for arcid in arcs
+            print(arcid, " ")
+        end
+        println()
+    end
 end
 
 """
@@ -2189,27 +2492,37 @@ print_enum_paths(enum_paths)
 ```
 """
 function print_enum_paths(paths)
-   println("\n\nEnumerated paths (v1->(arc_id)->v2->...):")
-   net_vertex_id_map = Dict{Int,Dict{Int,Int}}()
-   for (id, (graph, arcs)) in enumerate(paths)
-      if !haskey(net_vertex_id_map, graph.id)
-         net_vertex_id_map[graph.id] = Dict(value => key for (key, value) in graph.user_vertex_id_map) # from user_id to net_id
-      end
-      print("path $(id) graph $(graph.id): ")
-      arc = graph.arc_id_to_arc[arcs[1]]
-      i = net_vertex_id_map[graph.id][arc.tail]
-      j = (graph.cycle_problem && arc.head == graph.sink_id) ? net_vertex_id_map[graph.id][graph.source_id] : net_vertex_id_map[graph.id][arc.head]
-      print("$i-($(arcs[1]))->$j")
-      prev = j
-      for arcid in arcs[2:end]
-         arc = graph.arc_id_to_arc[arcid]
-         j = (graph.cycle_problem && arc.head == graph.sink_id) ? net_vertex_id_map[graph.id][graph.source_id] : net_vertex_id_map[graph.id][arc.head]
-         print("-($arcid)->$j")
-         prev = j
-      end
-      println()
-   end
-   println()
+    println("\n\nEnumerated paths (v1->(arc_id)->v2->...):")
+    net_vertex_id_map = Dict{Int,Dict{Int,Int}}()
+    for (id, (graph, arcs)) in enumerate(paths)
+        if !haskey(net_vertex_id_map, graph.id)
+            net_vertex_id_map[graph.id] = Dict(
+                value => key for (key, value) in graph.user_vertex_id_map
+            ) # from user_id to net_id
+        end
+        print("path $(id) graph $(graph.id): ")
+        arc = graph.arc_id_to_arc[arcs[1]]
+        i = net_vertex_id_map[graph.id][arc.tail]
+        j = if (graph.cycle_problem && arc.head == graph.sink_id)
+            net_vertex_id_map[graph.id][graph.source_id]
+        else
+            net_vertex_id_map[graph.id][arc.head]
+        end
+        print("$i-($(arcs[1]))->$j")
+        prev = j
+        for arcid in arcs[2:end]
+            arc = graph.arc_id_to_arc[arcid]
+            j = if (graph.cycle_problem && arc.head == graph.sink_id)
+                net_vertex_id_map[graph.id][graph.source_id]
+            else
+                net_vertex_id_map[graph.id][arc.head]
+            end
+            print("-($arcid)->$j")
+            prev = j
+        end
+        println()
+    end
+    println()
 end
 
 """
@@ -2237,166 +2550,205 @@ println("Objective value: ", getobjectivevalue(complete_form))
 ```
 """
 function get_complete_formulation(model::VrpModel, paramfile::String)
-   paths = get_enum_paths(model, paramfile)
-   formulation = JuMP.Model()
+    paths = get_enum_paths(model, paramfile)
+    formulation = JuMP.Model()
 
-   user_form = model.formulation
-   user_var_to_graphs = extract_user_var_to_graphs(model)
-   user_var_to_var = Dict{JuMP.VariableRef,JuMP.VariableRef}()
-   user_vars = [JuMP.VariableRef(user_form, i) for i in 1:user_form.numCols]
-   mapped_names = get_mapped_containers_names(model)
-   ignored_names = get_ignored_containers_names(model, mapped_names)
+    user_form = model.formulation
+    user_var_to_graphs = extract_user_var_to_graphs(model)
+    user_var_to_var = Dict{JuMP.VariableRef,JuMP.VariableRef}()
+    user_vars = [JuMP.VariableRef(user_form, i) for i in 1:user_form.numCols]
+    mapped_names = get_mapped_containers_names(model)
+    ignored_names = get_ignored_containers_names(model, mapped_names)
 
-   function ignored_var(user_var)
-      (var_container_name, var_id) = split_var_name(user_var)
-      if (var_container_name in ignored_names) && !haskey(user_var_to_graphs, user_var)
-         return true
-      end
-      return false
-   end
+    function ignored_var(user_var)
+        (var_container_name, var_id) = split_var_name(user_var)
+        if (var_container_name in ignored_names) && !haskey(user_var_to_graphs, user_var)
+            return true
+        end
+        return false
+    end
 
-   #creating variables
-   vars_info = Dict{String,Array{Any}}()
-   for user_var in user_vars
-      if ignored_var(user_var)
-         continue
-      end
-      (var_container_name, var_id) = split_var_name(user_var)
-      if length(var_id) == 1
-         var_id = var_id[1]
-      end
-      if !haskey(vars_info, var_container_name)
-         vars_info[var_container_name] = []
-      end
-      push!(vars_info[var_container_name], (var_id, user_var, getcategory(user_var),
-         getlowerbound(user_var), getupperbound(user_var))
-      )
-   end
-   vars_info["λ"] = [(i, nothing, :Int, 0, Inf) for i in 1:length(paths)] #lambda variables
-
-   lambda_container = nothing
-   for (var_container_name, info) in vars_info
-      vars_ids = [i[1] for i in info]
-      vars_container = JuMP.JuMPArray(JuMP.Array{JuMP.variabletype(formulation)}(JuMP.undef, JuMP.length(vars_ids)), (vars_ids,))
-      if var_container_name == "λ"
-         lambda_container = vars_container
-      end
-      for (id, user_var, cat, lb, ub) in info
-         JuMP.coloncheck(id)
-         vars_container[id] = JuMP.constructvariable!(formulation, msg -> error("Error when VrpSolver constructed variable :", msg), -Inf, Inf, :Default, JuMP.EMPTYSTRING, NaN)
-         setcategory(vars_container[id], cat)
-         setlowerbound(vars_container[id], lb)
-         setupperbound(vars_container[id], ub)
-         if user_var != nothing
-            user_var_to_var[user_var] = vars_container[id]
-         end
-      end
-      JuMP.pushmeta!(vars_container, :model, formulation)
-      JuMP.push!(formulation.dictList, vars_container)
-      JuMP.registervar(formulation, Symbol(var_container_name), vars_container)
-      JuMP.storecontainerdata(formulation, vars_container, Symbol(var_container_name), (vars_ids,), JuMP.IndexPair[JuMP.IndexPair(:a, :vars_ids)], Expr(:copyast, :((QuoteNode(:(()))))))
-   end
-
-   #computing uservar_map for paths
-   paths_uservar_map = []
-   for (graph, path) in paths
-      push!(paths_uservar_map, get_path_uservar_map(path, graph))
-   end
-   #creating objective function
-   if getobjectivesense(user_form) == :Max
-      error("VrpSolver does not handle maximization problems")
-   end
-   coeffs, vars = [], []
-   for (coeff, user_var) in linearterms(user_form.obj.aff)
-      if ignored_var(user_var)
-         continue
-      end
-      push!(coeffs, coeff)
-      push!(vars, user_var_to_var[user_var])
-   end
-   JuMP.setobjective(formulation, :Min, AffExpr(vars, coeffs, user_form.obj.aff.constant))
-
-   #creating constraints
-   for constr in user_form.linconstr
-      coeffs = []
-      vars = []
-      for (coeff, user_var) in linearterms(constr.terms)
-         if ignored_var(user_var)
+    #creating variables
+    vars_info = Dict{String,Array{Any}}()
+    for user_var in user_vars
+        if ignored_var(user_var)
             continue
-         end
-         push!(coeffs, coeff)
-         push!(vars, user_var_to_var[user_var])
-      end
-      JuMP.addconstraint(formulation, LinearConstraint(AffExpr(vars, coeffs, 0.0), constr.lb, constr.ub))
-   end
+        end
+        (var_container_name, var_id) = split_var_name(user_var)
+        if length(var_id) == 1
+            var_id = var_id[1]
+        end
+        if !haskey(vars_info, var_container_name)
+            vars_info[var_container_name] = []
+        end
+        push!(
+            vars_info[var_container_name],
+            (
+                var_id,
+                user_var,
+                getcategory(user_var),
+                getlowerbound(user_var),
+                getupperbound(user_var),
+            ),
+        )
+    end
+    vars_info["λ"] = [(i, nothing, :Int, 0, Inf) for i in 1:length(paths)] #lambda variables
 
-   #mapping constraints
-   for user_var in user_vars
-      if haskey(user_var_to_graphs, user_var)
-         coeffs = [1]
-         vars = [user_var_to_var[user_var]]
-         #lambda vars
-         for (id, (graph, path)) in enumerate(paths)
-            if haskey(paths_uservar_map[id], user_var)
-               push!(coeffs, -paths_uservar_map[id][user_var])
-               push!(vars, lambda_container[id])
+    lambda_container = nothing
+    for (var_container_name, info) in vars_info
+        vars_ids = [i[1] for i in info]
+        vars_container = JuMP.JuMPArray(
+            JuMP.Array{JuMP.variabletype(formulation)}(JuMP.undef, JuMP.length(vars_ids)),
+            (vars_ids,),
+        )
+        if var_container_name == "λ"
+            lambda_container = vars_container
+        end
+        for (id, user_var, cat, lb, ub) in info
+            JuMP.coloncheck(id)
+            vars_container[id] = JuMP.constructvariable!(
+                formulation,
+                msg -> error("Error when VrpSolver constructed variable :", msg),
+                -Inf,
+                Inf,
+                :Default,
+                JuMP.EMPTYSTRING,
+                NaN,
+            )
+            setcategory(vars_container[id], cat)
+            setlowerbound(vars_container[id], lb)
+            setupperbound(vars_container[id], ub)
+            if user_var != nothing
+                user_var_to_var[user_var] = vars_container[id]
             end
-         end
-         JuMP.addconstraint(formulation, LinearConstraint(AffExpr(vars, coeffs, 0.0), 0.0, 0.0))
-      end
-   end
+        end
+        JuMP.pushmeta!(vars_container, :model, formulation)
+        JuMP.push!(formulation.dictList, vars_container)
+        JuMP.registervar(formulation, Symbol(var_container_name), vars_container)
+        JuMP.storecontainerdata(
+            formulation,
+            vars_container,
+            Symbol(var_container_name),
+            (vars_ids,),
+            JuMP.IndexPair[JuMP.IndexPair(:a, :vars_ids)],
+            Expr(:copyast, :((QuoteNode(:(()))))),
+        )
+    end
 
-   #convexity constraint
-   for graph in model.graphs
-      coeffs = []
-      vars = []
-      #lambda vars
-      for (id, (g, path)) in enumerate(paths)
-         if g == graph
-            push!(coeffs, 1)
-            push!(vars, lambda_container[id])
-         end
-      end
-      JuMP.addconstraint(formulation, LinearConstraint(AffExpr(vars, coeffs, 0.0), -Inf, graph.multiplicity[2]))
-      JuMP.addconstraint(formulation, LinearConstraint(AffExpr(vars, coeffs, 0.0), graph.multiplicity[1], Inf))
-   end
+    #computing uservar_map for paths
+    paths_uservar_map = []
+    for (graph, path) in paths
+        push!(paths_uservar_map, get_path_uservar_map(path, graph))
+    end
+    #creating objective function
+    if getobjectivesense(user_form) == :Max
+        error("VrpSolver does not handle maximization problems")
+    end
+    coeffs, vars = [], []
+    for (coeff, user_var) in linearterms(user_form.obj.aff)
+        if ignored_var(user_var)
+            continue
+        end
+        push!(coeffs, coeff)
+        push!(vars, user_var_to_var[user_var])
+    end
+    JuMP.setobjective(formulation, :Min, AffExpr(vars, coeffs, user_form.obj.aff.constant))
 
-   return paths, formulation
+    #creating constraints
+    for constr in user_form.linconstr
+        coeffs = []
+        vars = []
+        for (coeff, user_var) in linearterms(constr.terms)
+            if ignored_var(user_var)
+                continue
+            end
+            push!(coeffs, coeff)
+            push!(vars, user_var_to_var[user_var])
+        end
+        JuMP.addconstraint(
+            formulation, LinearConstraint(AffExpr(vars, coeffs, 0.0), constr.lb, constr.ub)
+        )
+    end
+
+    #mapping constraints
+    for user_var in user_vars
+        if haskey(user_var_to_graphs, user_var)
+            coeffs = [1]
+            vars = [user_var_to_var[user_var]]
+            #lambda vars
+            for (id, (graph, path)) in enumerate(paths)
+                if haskey(paths_uservar_map[id], user_var)
+                    push!(coeffs, -paths_uservar_map[id][user_var])
+                    push!(vars, lambda_container[id])
+                end
+            end
+            JuMP.addconstraint(
+                formulation, LinearConstraint(AffExpr(vars, coeffs, 0.0), 0.0, 0.0)
+            )
+        end
+    end
+
+    #convexity constraint
+    for graph in model.graphs
+        coeffs = []
+        vars = []
+        #lambda vars
+        for (id, (g, path)) in enumerate(paths)
+            if g == graph
+                push!(coeffs, 1)
+                push!(vars, lambda_container[id])
+            end
+        end
+        JuMP.addconstraint(
+            formulation,
+            LinearConstraint(AffExpr(vars, coeffs, 0.0), -Inf, graph.multiplicity[2]),
+        )
+        JuMP.addconstraint(
+            formulation,
+            LinearConstraint(AffExpr(vars, coeffs, 0.0), graph.multiplicity[1], Inf),
+        )
+    end
+
+    return paths, formulation
 end
 
 function get_path_uservar_map(path::Vector{Int}, graph::VrpGraph)
-   uservar_map = Dict{JuMP.VariableRef,Float64}()
-   for arc_id in path
-      arc = graph.arcs[arc_id]
-      for (uservar, coef) in arc.vars
-         if !haskey(uservar_map, uservar)
-            uservar_map[uservar] = coef
-         else
-            uservar_map[uservar] += coef
-         end
-      end
-   end
-   return uservar_map
+    uservar_map = Dict{JuMP.VariableRef,Float64}()
+    for arc_id in path
+        arc = graph.arcs[arc_id]
+        for (uservar, coef) in arc.vars
+            if !haskey(uservar_map, uservar)
+                uservar_map[uservar] = coef
+            else
+                uservar_map[uservar] += coef
+            end
+        end
+    end
+    return uservar_map
 end
 
-function get_path_coef_in_constr(path::Vector{Int}, graph::VrpGraph, uservar_map::Dict{JuMP.VariableRef,Float64}, constr)
-   path_coef = 0.0
-   for (coef, user_var) in linearterms(constr.terms)
-      if haskey(uservar_map, user_var)
-         path_coef += coef * uservar_map[user_var]
-      end
-   end
-   return path_coef
+function get_path_coef_in_constr(
+    path::Vector{Int}, graph::VrpGraph, uservar_map::Dict{JuMP.VariableRef,Float64}, constr
+)
+    path_coef = 0.0
+    for (coef, user_var) in linearterms(constr.terms)
+        if haskey(uservar_map, user_var)
+            path_coef += coef * uservar_map[user_var]
+        end
+    end
+    return path_coef
 end
 
-function get_path_coef_in_obj(path::Vector{Int}, graph::VrpGraph, uservar_map::Dict{JuMP.VariableRef,Float64}, obj_fct)
-   path_coef = 0.0
-   for (coef, user_var) in linearterms(obj_fct.aff)
-      if haskey(uservar_map, user_var)
-         path_coef += coef * uservar_map[user_var]
-      end
-   end
-   return path_coef
+function get_path_coef_in_obj(
+    path::Vector{Int}, graph::VrpGraph, uservar_map::Dict{JuMP.VariableRef,Float64}, obj_fct
+)
+    path_coef = 0.0
+    for (coef, user_var) in linearterms(obj_fct.aff)
+        if haskey(uservar_map, user_var)
+            path_coef += coef * uservar_map[user_var]
+        end
+    end
+    return path_coef
 end
 
 # function VrpBlockModel(;solver = JuMP.UnsetSolver())
@@ -2517,5 +2869,3 @@ end
 # end
 
 end
-
-
