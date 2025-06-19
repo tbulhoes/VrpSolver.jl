@@ -37,6 +37,7 @@ export add_resource!,
    get_value,
    get_values,
    get_number_of_positive_paths,
+   get_path_arcs,
    add_cut_callback!,
    add_dynamic_constr!,
    show,
@@ -90,7 +91,7 @@ mutable struct VrpGraph
    cycle_problem::Bool # true when source=sink for the user (vertices[sink_id] is only an internal vertex)
    res_bounds_vertex::Dict{Tuple{Int,Int},Tuple{Float64,Float64}} # stores all intervals defined by the user on vertices
    res_bounds_arc::Dict{Tuple{Int,Int},Tuple{Float64,Float64}} # stores all intervals defined by the user on arcs
-   arc_rcsp_id_to_id::Dict{Int,Int}
+   arc_bapcod_id_to_id::Dict{Int,Int}
    net
    es_dist_matrix
    elem_sets::Array{Array{Int,1},1}
@@ -150,13 +151,20 @@ struct OptimizerColsInfo
    cols_types::Vector{Char}
 end
 
+struct SpSol
+   graph_id::Int
+   multiplicity::Int
+   user_vars_in_sol::Dict{JuMP.VariableRef,Float64}
+   arc_seq::Vector{VrpArc}
+end
+
 mutable struct VrpOptimizer
    user_model::VrpModel
    bapcod_model
    param_file::String
    instance_name::String
    callbacks::Dict{String,CallbackInfo}
-   spsols_in_sol::Array{Tuple{Int,Dict{JuMP.VariableRef,Float64}}}
+   spsols_in_sol::Vector{SpSol}
    unmapped_vars_in_sol::Dict{JuMP.VariableRef,Float64}
    integer_objective::Bool
    initUB::Float64
@@ -1133,48 +1141,48 @@ function generate_pricing_networks(user_model::VrpModel, bapcod_model, optimizer
          if is_preprocessed_arc(graph, arc)
             continue
          end
-         arc_rcsp_id = wbcr_new_arc(c_net_ptr, arc.tail - 1, arc.head - 1, 0.0)
-         graph.arc_rcsp_id_to_id[arc_rcsp_id] = arc.id
+         arc_bapcod_id = wbcr_new_arc(c_net_ptr, arc.tail - 1, arc.head - 1, 0.0)
+         graph.arc_bapcod_id_to_id[arc_bapcod_id] = arc.id
          for resource in graph.resources
             if resource.is_binary
                res_seq_id = resource_id_in_bapcod(resource, graph)
                wbcr_set_edge_special_consumption_value(
                   c_net_ptr,
-                  arc_rcsp_id,
+                  arc_bapcod_id,
                   res_seq_id - 1,
                   arc.res_consumption[resource.id],
                )
             else
                wbcr_set_edge_consumption_value(
                   c_net_ptr,
-                  arc_rcsp_id,
+                  arc_bapcod_id,
                   resource.id - 1,
                   arc.res_consumption[resource.id],
                )
                wbcr_set_arc_consumption_lb(c_net_ptr,
-                  arc_rcsp_id,
+                  arc_bapcod_id,
                   resource.id - 1, arc.res_bounds[resource.id][1])
                wbcr_set_arc_consumption_ub(c_net_ptr,
-                  arc_rcsp_id,
+                  arc_bapcod_id,
                   resource.id - 1, arc.res_bounds[resource.id][2])
             end
          end
          # adding arc to packing_set
          if arc.packing_set != -1
-            wbcr_add_edge_to_packing_set(c_net_ptr, arc_rcsp_id, arc.packing_set - 1)
-            wbcr_attach_elementarity_set_to_edge(c_net_ptr, arc_rcsp_id, arc.packing_set - 1)
+            wbcr_add_edge_to_packing_set(c_net_ptr, arc_bapcod_id, arc.packing_set - 1)
+            wbcr_attach_elementarity_set_to_edge(c_net_ptr, arc_bapcod_id, arc.packing_set - 1)
          elseif arc.elem_set != -1
-            wbcr_attach_elementarity_set_to_edge(c_net_ptr, arc_rcsp_id, nbPackSets + arc.elem_set - 1)
+            wbcr_attach_elementarity_set_to_edge(c_net_ptr, arc_bapcod_id, nbPackSets + arc.elem_set - 1)
          end
          # defining the neighbourhood of the arc
          for es_id in arc.ng_set
-            wbcr_add_arc_to_mem_of_elementarity_set(c_net_ptr, arc_rcsp_id, es_id - 1)
+            wbcr_add_arc_to_mem_of_elementarity_set(c_net_ptr, arc_bapcod_id, es_id - 1)
          end
          #arc variables
          for (user_var, coeff) in arc.vars
             for colid in optimizer_cols_info.uservar_to_colids[user_var]
                if optimizer_cols_info.cols_problems[colid+1][2] == graph.id - 1
-                  wbcr_attach_bcvar_to_arc(c_net_ptr, arc_rcsp_id, bapcod_model, colid, coeff)
+                  wbcr_attach_bcvar_to_arc(c_net_ptr, arc_bapcod_id, bapcod_model, colid, coeff)
                end
             end
          end
@@ -1845,26 +1853,20 @@ end
 function register_solutions(optimizer::VrpOptimizer, bapcodsol)
    bapcod_model = optimizer.bapcod_model
    user_vars = all_variables(optimizer.user_model.formulation)
-   spsols_in_sol = Tuple{Int,Dict{JuMP.VariableRef,Float64}}[]
+   spsols_in_sol = SpSol[]
    optimizer_cols_info = optimizer.optimizer_cols_info
    unmapped_vars_in_sol = Dict{JuMP.VariableRef,Float64}()
-
-   # Initialize Columns
-   c_start(bapcodsol, bapcod_model)
-   status = c_next(bapcodsol) # ignore master solution
-   while status == 1
-      mult = Ref{Cint}(0)
-      mult = c_getMultiplicity(bapcodsol)
-      push!(spsols_in_sol, (mult, Dict{JuMP.VariableRef,Float64}()))
-      status = c_next(bapcodsol)
-   end
 
    # computing sp sols
    c_start(bapcodsol, bapcod_model)
    status = c_next(bapcodsol) # ignore master solution
-   spsol_id = 1
    while status == 1
       subproblem_id = Int(c_getProblemFirstId(bapcodsol))
+      mult = c_getMultiplicity(bapcodsol)
+      graph = optimizer.user_model.graphs[subproblem_id+1]
+      spsol = SpSol(graph.id, mult, Dict{JuMP.VariableRef,Float64}(), VrpArc[])
+
+      # computing the values of user vars in the subproblem sol
       for user_var in user_vars
          if optimizer_cols_info.uservar_to_problem_type[user_var] == :DW_MASTER
             continue
@@ -1876,11 +1878,19 @@ function register_solutions(optimizer::VrpOptimizer, bapcodsol)
             end
          end
          if user_var_val > 0
-            spsols_in_sol[spsol_id][2][user_var] = user_var_val
+            spsol.user_vars_in_sol[user_var] = user_var_val
          end
       end
+
+      # retrieving the sequence of arcs
+      arcs_bapcod_ids = c_getArcs(bapcodsol)
+      for arc_bap_id in arcs_bapcod_ids
+         arc_id = graph.arc_bapcod_id_to_id[arc_bap_id]
+         push!(spsol.arc_seq, graph.arcs[arc_id])
+      end
+
+      push!(spsols_in_sol, spsol)
       status = c_next(bapcodsol)
-      spsol_id += 1
    end
 
    optimizer.spsols_in_sol = spsols_in_sol
@@ -1981,11 +1991,7 @@ Get the value for a decision variable due to a specific path.
 `path_id` shoul be a value between 1 and the number of positive paths.
 """
 function get_value(optimizer::VrpOptimizer, user_var::JuMP.VariableRef, path_id::Int)
-   if haskey(optimizer.spsols_in_sol[path_id][2], user_var)
-      return optimizer.spsols_in_sol[path_id][2][user_var]
-   else
-      return 0.0
-   end
+   return get(optimizer.spsols_in_sol[path_id].user_vars_in_sol, user_var, 0.0)
 end
 
 """
@@ -2021,6 +2027,22 @@ of retrieving the value of the lambda variables and for identifying the path.
 """
 function get_number_of_positive_paths(optimizer::VrpOptimizer)
    return length(optimizer.spsols_in_sol)
+end
+
+"""
+    get_path_arcs(optimizer::VrpOptimizer, path_id::Int)
+
+Returns a tuple where the first element is the `VrpGraph` and the second element is the sequence of arcs associated with the path.
+
+"""
+function get_path_arcs(optimizer::VrpOptimizer, path_id::Int)
+   if !(1 <= path_id <= length(optimizer.spsols_in_sol))
+      @error "VrpSolver error: invalid path id"
+   end
+
+   spsol = optimizer.spsols_in_sol[path_id]
+   graph = optimizer.user_model.graphs[spsol.graph_id]
+   return (graph, spsol.arc_seq)
 end
 
 """
@@ -2131,7 +2153,7 @@ function get_enum_paths(model::VrpModel, paramfile::String)
       path = Int[]
       for bid in bapcodarcids
          rcsp_id = graph.net.bcid_2pos[bid]
-         arc_id = graph.arc_rcsp_id_to_id[rcsp_id]
+         arc_id = graph.arc_bapcod_id_to_id[rcsp_id]
          push!(path, arc_id)
       end
       push!(paths, (graph, path))

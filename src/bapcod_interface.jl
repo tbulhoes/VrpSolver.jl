@@ -480,3 +480,10 @@ end
 function c_next(solution::Ptr{Cvoid})
     @bcsol_ccall("next", Cint, (Ptr{Cvoid},), solution)
 end
+
+function c_getArcs(solution::Ptr{Cvoid})
+    nb_arcs = @bcsol_ccall("getNbNodes", Cint, (Ptr{Cvoid},), solution) - 1
+    arcs_ids = [Cint(0) for _ in 1:nb_arcs]
+    @bcsol_ccall("getArcsIds", Cint, (Ptr{Cvoid}, Ptr{Cint}, Cint), solution, arcs_ids, nb_arcs)
+    return [Int(aid) for aid in arcs_ids]
+end
