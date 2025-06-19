@@ -32,7 +32,6 @@ export add_resource!,
    disable_rank1_cuts!,
    enable_resource_consumption_branching!,
    enable_packset_ryanfoster_branching!,
-   optimize!,
    set_cutoff!,
    get_objective_value,
    get_value,
@@ -43,8 +42,7 @@ export add_resource!,
    show,
    get_complete_formulation,
    print_enum_paths,
-   add_permanent_ryanfoster_constraint!,
-   optimize!
+   add_permanent_ryanfoster_constraint!
 
 @enum SetType NoSet = 0 ArcSet = 1 VertexSet = 2
 
@@ -1787,7 +1785,7 @@ optimizer = VrpOptimizer(model, "path_to_config/config.cfg")
 (status, solution_found) = optimize!(optimizer)
 ```
 """
-function optimize!(optimizer::VrpOptimizer)
+function JuMP.optimize!(optimizer::VrpOptimizer)
 
    sol_ptr = new_sol!()
    c_optimize(optimizer.bapcod_model, sol_ptr)
