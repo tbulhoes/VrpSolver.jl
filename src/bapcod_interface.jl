@@ -467,14 +467,23 @@ function new_sol!()
     @bcsol_ccall("new", Ptr{Cvoid}, ())
 end
 
-function c_getValues(mptr::Ptr{Cvoid}, solution::Ptr{Cvoid}, vector, nbvars::Integer)
-    @bcsol_ccall("getValues", Cint, (Ptr{Cvoid}, Ptr{Cvoid}, Ptr{Cdouble}, Cint),
-        mptr, solution, vector, nbvars)
+function c_getValueOfVar(mptr::Ptr{Cvoid}, solution::Ptr{Cvoid}, colid::Int)
+    value = Ref{Cdouble}(0.0)
+    @bcsol_ccall("getValueOfVar", Cint, (Ptr{Cvoid}, Ptr{Cvoid}, Cint, Ref{Cdouble}),
+        mptr, solution, Cint(colid), value)
+    return Float64(value[])
 end
 
-function c_getMultiplicity(solution::Ptr{Cvoid}, mult)
+function c_getMultiplicity(solution::Ptr{Cvoid})
+    mult = Ref{Cint}(0)
     @bcsol_ccall("getMultiplicity", Cint, (Ptr{Cvoid}, Ref{Cint}),
         solution, mult)
+    return Int(mult[])
+end
+
+function c_getProblemFirstId(solution::Ptr{Cvoid})
+    fid = @bcsol_ccall("getProblemFirstId", Cint, (Ptr{Cvoid},), solution)
+    return Int(fid)
 end
 
 function c_start(solution::Ptr{Cvoid}, mptr)
@@ -484,23 +493,3 @@ end
 function c_next(solution::Ptr{Cvoid})
     @bcsol_ccall("next", Cint, (Ptr{Cvoid},), solution)
 end
-
-# Build the solution stored in a matrix. Each row is a column.
-function get_solution(modelptr::Ptr{Cvoid}, solptr::Ptr{Cvoid}, nbvars::Int)
-    # For each variable we create an array containing the variable value for each solution
-    sol = Tuple{Int,Array{Tuple{Int,Float64},1}}[]
-    status = c_start(solptr, modelptr)
-    while status == 1
-        vector = Array{Cdouble,1}(undef, nbvars)
-        c_getValues(modelptr, solptr, vector, nbvars)
-        mult = Ref{Cint}(0)
-        nonzeros = [(i, vector[i]) for i in 1:nbvars if vector[i] != 0.0]
-        if !isempty(nonzeros)
-            status = c_getMultiplicity(solptr, mult)
-            push!(sol, (Int(mult[]), nonzeros))
-        end
-        status = c_next(solptr)
-    end
-    return sol
-end
-

@@ -158,7 +158,8 @@ mutable struct VrpOptimizer
    param_file::String
    instance_name::String
    callbacks::Dict{String,CallbackInfo}
-   cols_in_sol::Array{Tuple{Float64,Dict{JuMP.VariableRef,Float64}}}
+   spsols_in_sol::Array{Tuple{Int,Dict{JuMP.VariableRef,Float64}}}
+   unmapped_vars_in_sol::Dict{JuMP.VariableRef,Float64}
    integer_objective::Bool
    initUB::Float64
    mapped_container_names::Vector{String}
@@ -1758,7 +1759,8 @@ function VrpOptimizer(user_model::VrpModel, param_file::String, instance_name=""
 
    optimizer = VrpOptimizer(user_model, bapcod_model_ptr, param_file, instance_name,
       Dict{String,CallbackInfo}(),
-      Dict{JuMP.VariableRef,Float64}[],
+      Tuple{Int,Dict{JuMP.VariableRef,Float64}}[],
+      Dict{JuMP.VariableRef,Float64}(),
       integer_objective, -1,
       mapped_names, ignored_names, Dict(), baptreedot, optimizer_cols_info)
    user_model.optimizer = optimizer
@@ -1794,8 +1796,7 @@ function optimize!(optimizer::VrpOptimizer)
    #    param_file=optimizer.param_file,
    #    integer_objective=optimizer.integer_objective, baptreedot_file=optimizer.baptreedot_file,
    #    user_params="--MaxNbOfStagesInColGenProcedure 3 --colGenSubProbSolMode 3 --MipSolverMultiThread 1 --ApplyStrongBranchingEvaluation true")
-   # status = solve(optimizer.formulation)
-   # has_solution = register_solutions(optimizer)
+   has_solution = register_solutions(optimizer, sol_ptr)
 
    # println("statistics_cols: instance & :Optimal & cutoff & :bcRecRootDb & :bcTimeRootEval & :bcCountNodeProc & :bcRecBestDb & :bcRecBestInc & :bcTimeMain \\\\")
    # print("statistics: $(optimizer.instance_name) & ")
@@ -1838,47 +1839,67 @@ function optimize!(optimizer::VrpOptimizer)
    # optimizer.stats[:bcTimePrimalHeur] = getstatistic(optimizer.formulation, :bcTimePrimalHeur)
 
    # return status, has_solution
-   return 0, false
+   return 0, has_solution
 end
 
-function register_solutions(optimizer::VrpOptimizer)
-   cols_in_sol = Tuple{Float64,Dict{JuMP.VariableRef,Float64}}[]
-   bapcodsol = optimizer.formulation.internalModel.inner.solution
+function register_solutions(optimizer::VrpOptimizer, bapcodsol)
+   bapcod_model = optimizer.bapcod_model
+   user_vars = all_variables(optimizer.user_model.formulation)
+   spsols_in_sol = Tuple{Int,Dict{JuMP.VariableRef,Float64}}[]
+   optimizer_cols_info = optimizer.optimizer_cols_info
+   unmapped_vars_in_sol = Dict{JuMP.VariableRef,Float64}()
 
    # Initialize Columns
-   BaPCod.getstartsolution(optimizer.formulation.internalModel.inner, bapcodsol)
-   status = BaPCod.getnextsolution(bapcodsol) # ignore master solution
+   c_start(bapcodsol, bapcod_model)
+   status = c_next(bapcodsol) # ignore master solution
    while status == 1
-      m = BaPCod.getsolutionmultiplicity(bapcodsol)
-      push!(cols_in_sol, (m, Dict{JuMP.VariableRef,Float64}()))
-      status = BaPCod.getnextsolution(bapcodsol)
+      mult = Ref{Cint}(0)
+      mult = c_getMultiplicity(bapcodsol)
+      push!(spsols_in_sol, (mult, Dict{JuMP.VariableRef,Float64}()))
+      status = c_next(bapcodsol)
    end
 
-   BaPCod.getstartsolution(optimizer.formulation.internalModel.inner, bapcodsol)
-   status = BaPCod.getnextsolution(bapcodsol) # ignore master solution
-   col_id = 1
+   # computing sp sols
+   c_start(bapcodsol, bapcod_model)
+   status = c_next(bapcodsol) # ignore master solution
+   spsol_id = 1
    while status == 1
-      for (user_var, vars) in optimizer.user_var_to_vars
+      subproblem_id = Int(c_getProblemFirstId(bapcodsol))
+      for user_var in user_vars
+         if optimizer_cols_info.uservar_to_problem_type[user_var] == :DW_MASTER
+            continue
+         end
          user_var_val = 0.0
-         for var in vars
-            value = Ref{Cdouble}(0.0)
-            BaPCod.c_getValueOfVar(optimizer.formulation.internalModel.inner.ptr, bapcodsol, Cint(var.col - 1), value)
-            user_var_val += value[]
+         for colid in optimizer_cols_info.uservar_to_colids[user_var]
+            if optimizer_cols_info.cols_problems[colid+1][2] == subproblem_id
+               user_var_val += c_getValueOfVar(bapcod_model, bapcodsol, colid)
+            end
          end
          if user_var_val > 0
-            cols_in_sol[col_id][2][user_var] = user_var_val
+            spsols_in_sol[spsol_id][2][user_var] = user_var_val
          end
       end
-      status = BaPCod.getnextsolution(bapcodsol)
-      col_id += 1
+      status = c_next(bapcodsol)
+      spsol_id += 1
    end
 
-   optimizer.cols_in_sol = cols_in_sol
-   if length(cols_in_sol) == 0
+   optimizer.spsols_in_sol = spsols_in_sol
+   if length(spsols_in_sol) == 0
+      optimizer.unmapped_vars_in_sol = unmapped_vars_in_sol
       return false
-   else
-      return true
    end
+
+   # getting unmapped vars values
+   c_start(bapcodsol, bapcod_model)
+   for user_var in user_vars
+      if optimizer_cols_info.uservar_to_problem_type[user_var] == :DW_MASTER
+         colid = optimizer_cols_info.uservar_to_colids[user_var][1]
+         unmapped_vars_in_sol[user_var] = c_getValueOfVar(bapcod_model, bapcodsol, colid)
+      end
+   end
+   optimizer.unmapped_vars_in_sol = unmapped_vars_in_sol
+
+   return true
 end
 
 """
@@ -1906,11 +1927,19 @@ Get the objective function value after optimization.
 
 """
 function get_objective_value(optimizer::VrpOptimizer)
-   value = getobjectivevalue(optimizer.formulation)
+   user_form = optimizer.user_model.formulation
+   user_vars = all_variables(user_form)
+   obj_value = 0.0
+   for user_var in user_vars
+      obj_coeff = get(objective_function(user_form).terms, user_var, 0.0)
+      var_val = get_value(optimizer, user_var)
+      obj_value += obj_coeff * var_val
+   end
+   # CHECK: is this really needed?
    if optimizer.integer_objective
-      return round(value)
+      return round(obj_value)
    else
-      return value
+      return obj_value
    end
 end
 
@@ -1921,11 +1950,16 @@ Get the value for a decision variable after optimization.
 
 """
 function get_value(optimizer::VrpOptimizer, user_var::JuMP.VariableRef)
-   val = 0.0
-   for var in optimizer.user_var_to_vars[user_var]
-      val += JuMP.getvalue(var)
+   optimizer_cols_info = optimizer.optimizer_cols_info
+   if optimizer_cols_info.uservar_to_problem_type[user_var] == :DW_MASTER
+      return get(optimizer.unmapped_vars_in_sol, user_var, 0.0)
+   else
+      val = 0.0
+      for path_id in 1:length(optimizer.spsols_in_sol)
+         val += get_value(optimizer, user_var, path_id)
+      end
+      return val
    end
-   return val
 end
 
 """
@@ -1947,8 +1981,8 @@ Get the value for a decision variable due to a specific path.
 `path_id` shoul be a value between 1 and the number of positive paths.
 """
 function get_value(optimizer::VrpOptimizer, user_var::JuMP.VariableRef, path_id::Int)
-   if haskey(optimizer.cols_in_sol[path_id][2], user_var)
-      return optimizer.cols_in_sol[path_id][2][user_var]
+   if haskey(optimizer.spsols_in_sol[path_id][2], user_var)
+      return optimizer.spsols_in_sol[path_id][2][user_var]
    else
       return 0.0
    end
@@ -1961,8 +1995,8 @@ Get the value for a path variable (λ variable created internally due to the map
 
 """
 function get_value(optimizer::VrpOptimizer, path_id::Int)
-   if 1 <= path_id <= length(optimizer.cols_in_sol)
-      return optimizer.cols_in_sol[path_id][1]
+   if 1 <= path_id <= length(optimizer.spsols_in_sol)
+      return optimizer.spsols_in_sol[path_id][1]
    end
    return 0.0
 end
@@ -1986,7 +2020,7 @@ of retrieving the value of the lambda variables and for identifying the path.
 
 """
 function get_number_of_positive_paths(optimizer::VrpOptimizer)
-   return length(optimizer.cols_in_sol)
+   return length(optimizer.spsols_in_sol)
 end
 
 """
