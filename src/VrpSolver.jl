@@ -1173,7 +1173,9 @@ function generate_pricing_networks(user_model::VrpModel, bapcod_model, optimizer
          #arc variables
          for (user_var, coeff) in arc.vars
             for colid in optimizer_cols_info.uservar_to_colids[user_var]
-               wbcr_attach_bcvar_to_arc(c_net_ptr, arc_rcsp_id, bapcod_model, colid, coeff)
+               if optimizer_cols_info.cols_problems[colid+1][2] == graph.id - 1
+                  wbcr_attach_bcvar_to_arc(c_net_ptr, arc_rcsp_id, bapcod_model, colid, coeff)
+               end
             end
          end
       end
