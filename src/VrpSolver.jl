@@ -2080,6 +2080,10 @@ optimizer = VrpOptimizer(model, "path_to_config/config.cfg")
 ```
 """
 function JuMP.optimize!(optimizer::VrpOptimizer)
+    # Save access to the optimizer in the JuMP model to allow for getting variable values without
+    # having to pass it as an argument.
+    optimizer.user_model.formulation.optimize_hook = optimizer
+
     sol_ptr = new_sol!()
     c_optimize(optimizer.bapcod_model, sol_ptr)
 
@@ -2253,6 +2257,9 @@ function get_value(optimizer::VrpOptimizer, user_var::JuMP.VariableRef)
         end
         return val
     end
+end
+function JuMP.value(user_var::JuMP.VariableRef)
+    return get_value(user_var.model.optimize_hook, user_var)
 end
 
 """
@@ -2556,7 +2563,7 @@ function get_complete_formulation(model::VrpModel, paramfile::String)
     user_form = model.formulation
     user_var_to_graphs = extract_user_var_to_graphs(model)
     user_var_to_var = Dict{JuMP.VariableRef,JuMP.VariableRef}()
-    user_vars = [JuMP.VariableRef(user_form, i) for i in 1:user_form.numCols]
+    user_vars = [JuMP.VariableRef(user_form, i) for i in 1:(user_form.numCols)]
     mapped_names = get_mapped_containers_names(model)
     ignored_names = get_ignored_containers_names(model, mapped_names)
 

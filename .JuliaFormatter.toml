@@ -1,2 +1,3 @@
 style = "blue"
 whitespace_in_kwargs = true
+always_use_return = false
