@@ -98,8 +98,8 @@ mutable struct VrpGraph
 end
 
 mutable struct CapacityCutInfo
-    demands::Array{Tuple{Array{Tuple{VrpGraph,Int},1},Float64},1}
-    capacity::Float64
+    demands::Array{Int,1}
+    capacity::Int
     two_path_cuts_res_id::Int
 end
 
@@ -1512,7 +1512,10 @@ function add_capacity_cut_separator!(
         end
     end
 
-    push!(model.cap_cuts_info, CapacityCutInfo(demands, capacity, two_path_cuts_res_id))
+    push!(
+        model.cap_cuts_info,
+        CapacityCutInfo(id_demands, Int(capacity), two_path_cuts_res_id),
+    )
 end
 
 function add_capacity_cut_separators_to_optimizer(optimizer::VrpOptimizer)
@@ -2016,6 +2019,10 @@ function VrpOptimizer(
 
     #branching priorities
     set_branching_priorities_in_optimizer(user_model, bapcod_model_ptr, optimizer_cols_info)
+
+    for rcc in user_model.cap_cuts_info
+        wbcr_add_generic_capacity_cut(bapcod_model_ptr, rcc.capacity, rcc.demands)
+    end
 
     if user_model.use_rank1_cuts
         wbc_add_generic_lim_mem_one_cut(bapcod_model_ptr)
