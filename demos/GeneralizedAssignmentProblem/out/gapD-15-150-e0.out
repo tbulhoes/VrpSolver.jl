@@ -1,0 +1,249 @@
+WARNING: Force throwing a SIGINT
+=>  nothing
+  instance  =>  "../GeneralizedAssignmentProblem//data/Nauss/gapD-15-150-e0.txt"
+  ub  =>  9189.1
+  cfg  =>  "../GeneralizedAssignmentProblem//config/GAP_Nauss.cfg"
+VRPSolver warning: Interval set for resource 1 on source node (when source != sink) is ignored (by definition is [0.0,0.0])
+VRPSolver warning: Interval set for resource 1 on source node (when source != sink) is ignored (by definition is [0.0,0.0])
+VRPSolver warning: Interval set for resource 1 on source node (when source != sink) is ignored (by definition is [0.0,0.0])
+VRPSolver warning: Interval set for resource 1 on source node (when source != sink) is ignored (by definition is [0.0,0.0])
+VRPSolver warning: Interval set for resource 1 on source node (when source != sink) is ignored (by definition is [0.0,0.0])
+VRPSolver warning: Interval set for resource 1 on source node (when source != sink) is ignored (by definition is [0.0,0.0])
+VRPSolver warning: Interval set for resource 1 on source node (when source != sink) is ignored (by definition is [0.0,0.0])
+VRPSolver warning: Interval set for resource 1 on source node (when source != sink) is ignored (by definition is [0.0,0.0])
+VRPSolver warning: Interval set for resource 1 on source node (when source != sink) is ignored (by definition is [0.0,0.0])
+VRPSolver warning: Interval set for resource 1 on source node (when source != sink) is ignored (by definition is [0.0,0.0])
+VRPSolver warning: Interval set for resource 1 on source node (when source != sink) is ignored (by definition is [0.0,0.0])
+VRPSolver warning: Interval set for resource 1 on source node (when source != sink) is ignored (by definition is [0.0,0.0])
+VRPSolver warning: Interval set for resource 1 on source node (when source != sink) is ignored (by definition is [0.0,0.0])
+VRPSolver warning: Interval set for resource 1 on source node (when source != sink) is ignored (by definition is [0.0,0.0])
+VRPSolver warning: Interval set for resource 1 on source node (when source != sink) is ignored (by definition is [0.0,0.0])
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+VRPSolver v0.4,  1/09/2020. Web: vrpsolver.math.u-bordeaux.fr
+Corresponds to the solver by Pessoa, Sadykov, Uchoa and Vanderbeck (2020)
+Paper: dx.doi.org/10.1007/s10107-020-01523-z
+USE THIS CODE ONLY FOR ACADEMIC PURPOSES AT YOUR OWN RISK
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+BaPCod v050b,  1/09/2020, © Inria Bordeaux, France (license expires 1/12/2021)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+VRPSolver parameters:
+GlobalTimeLimit = 21474836
+MaxNbOfBBtreeNodeTreated = 100000
+treeSearchStrategy = 1
+RCSPstopCutGenTimeThresholdInPricing = 10
+RCSPhardTimeThresholdInPricing = 20
+RCSPnumberOfBucketsPerVertex = 100
+RCSPdynamicBucketSteps = 0
+RCSPuseBidirectionalSearch = 1
+RCSPapplyReducedCostFixing = 1
+RCSPredCostFixingFalseGap = 0
+RCSPmaxNumOfColsPerIteration = 10
+RCSPmaxNumOfColsPerExactIteration = 10
+RCSPheurLabelingStrategy = 0
+StabilizationMinPhaseOfStage = 0
+RCSPmaxNumOfLabelsInEnumeration = 100000
+RCSPmaxNumOfEnumeratedSolutions = 200000
+RCSPmaxNumOfEnumSolutionsForMIP = 4000
+RCSPinitNGneighbourhoodSize = 0
+RCSPmaxNGneighbourhoodSize = 0
+RCSPrankOneCutsMaxNumPerRound = 100
+RCSPrankOneCutsMaxNumRows = 4
+RCSPrankOneCutsMemoryType = 2
+CutTailingOffThreshold = 0.02
+CutTailingOffCounterThreshold = 3
+SafeDualBoundScaleFactor = -1
+StrongBranchingPhaseOneCandidatesNumber = 100
+StrongBranchingPhaseOneTreeSizeEstimRatio = 0.3
+StrongBranchingPhaseTwoCandidatesNumber = 3
+StrongBranchingPhaseTwoTreeSizeEstimRatio = 0.1
+MaxTimeForRestrictedMasterIpHeur = -1
+DivingHeurUseDepthLimit = -1
+MaxLDSbreadth = 0
+MaxLDSdepth = 0
+New model incumbent solution 9189.1, TIME = 0h0m0s0t = 0
+Model is built TIME = 0h0m0s65t = 65
+************************************************************************************************
+**** BaB tree root node
+**** Local DB = -1e+12, global bounds : [ -1e+12 , 9189.1 ], TIME = 0h0m0s65t = 65
+**** 1 open nodes, 0 columns (0 active), 0 dyn. constrs. (0 active), 330 art. vars. (330 active)
+************************************************************************************************
+<DWph=2> <it= 10> <et=4.72> <Mt= 0.47> <Spt= 3.58> <nCl=1039> <DB= -502.5994> <Mlp=14031.8135> <PB=9189.1> 
+<DWph=2> <it= 20> <et=9.36> <Mt= 1.13> <Spt= 3.49> <nCl=1500> <DB= 4676.2527> <Mlp=11348.4958> <PB=9189.1> 
+<DWph=2> <it= 30> <et=14.27> <Mt= 1.20> <Spt= 3.72> <nCl=1450> <DB= 8978.8642> <Mlp= 9454.2677> <PB=9189.1> 
+<DWph=2> <it= 40> <et=18.97> <Mt= 0.83> <Spt= 3.86> <nCl=1075> <DB= 9188.7632> <Mlp= 9203.7960> <PB=9189.1> 
+<DWph=2> <it= 44> <et=20.60> <Mt= 0.12> <Spt= 1.51> <nCl=121> <DB= 9199.2193> <Mlp= 9198.3906> <PB=9189.1> 
+<DWph=1> <it= 50> <et=24.56> <Mt= 0.72> <Spt= 3.23> <nCl=491> <DB= 9175.9458> <Mlp= 9180.3872> <PB=9189.1> 
+<DWph=1> <it= 58> <et=28.64> <Mt= 0.13> <Spt= 3.94> <nCl=116> <DB= 9179.9729> <Mlp= 9179.9729> <PB=9189.1> 
+<DWph=0> <it= 59> <et=29.07> <Mt= 0.00> <Spt= 0.43> <nCl=  0> <DB= 9179.9729> <Mlp= 9179.9729> <PB=9189.1> 
+Reduced cost fixing for graph G_12... took 0.05 sec., 17240 buck. arcs remain (71.6% from prev., 33.6% from max.)
+Run enumeration... took 0.13 sec. and not succeeded.
+Reduced cost fixing for graph G_2... took 0.05 sec., 17401 buck. arcs remain (77.7% from prev., 36.4% from max.)
+Run enumeration... took 0.09 sec. and not succeeded.
+Reduced cost fixing for graph G_5... took 0.05 sec., 16848 buck. arcs remain (67.9% from prev., 31.7% from max.)
+Run enumeration... took 0.15 sec. and not succeeded.
+Reduced cost fixing for graph G_1... took 0.05 sec., 15743 buck. arcs remain (68.4% from prev., 32.1% from max.)
+Run enumeration... took 0.12 sec. and not succeeded.
+Reduced cost fixing for graph G_14... took 0.05 sec., 18623 buck. arcs remain (69.3% from prev., 32.6% from max.)
+Run enumeration... took 0.14 sec. and not succeeded.
+Reduced cost fixing for graph G_13... took 0.05 sec., 16951 buck. arcs remain (75% from prev., 35.2% from max.)
+Run enumeration... took 0.14 sec. and not succeeded.
+Reduced cost fixing for graph G_6... took 0.05 sec., 18092 buck. arcs remain (76.2% from prev., 35.7% from max.)
+Run enumeration... took 0.1 sec. and not succeeded.
+Reduced cost fixing for graph G_9... took 0.06 sec., 19024 buck. arcs remain (70.3% from prev., 33% from max.)
+Run enumeration... took 0.1 sec. and not succeeded.
+Reduced cost fixing for graph G_8... took 0.06 sec., 14826 buck. arcs remain (65% from prev., 30.1% from max.)
+Run enumeration... took 0.34 sec. and not succeeded.
+Reduced cost fixing for graph G_15... took 0.06 sec., 17165 buck. arcs remain (70.1% from prev., 33% from max.)
+Run enumeration... took 0.13 sec. and not succeeded.
+Reduced cost fixing for graph G_7... took 0.05 sec., 17004 buck. arcs remain (76.9% from prev., 36.1% from max.)
+Run enumeration... took 0.1 sec. and not succeeded.
+Reduced cost fixing for graph G_4... took 0.05 sec., 21057 buck. arcs remain (78% from prev., 36.5% from max.)
+Run enumeration... took 0.11 sec. and not succeeded.
+Reduced cost fixing for graph G_3... took 0.04 sec., 15837 buck. arcs remain (71.1% from prev., 33.4% from max.)
+Run enumeration... took 0.12 sec. and not succeeded.
+Reduced cost fixing for graph G_11... took 0.05 sec., 16978 buck. arcs remain (75.1% from prev., 35.2% from max.)
+Run enumeration... took 0.11 sec. and not succeeded.
+Reduced cost fixing for graph G_10... took 0.06 sec., 19878 buck. arcs remain (74.6% from prev., 35.1% from max.)
+Run enumeration... took 0.12 sec. and not succeeded.
+ColGenEvalAlg final dual bound: 9179.97 (rounded: 9180)
+----- Add fac. cuts : R1C(150), max.viol = 0.377406, aver.viol = 0.139857, sep/add took 0.03/1.51 sec. -----
+6175 columns (6175 active), 150 dyn. constrs. (150 active), 465 art. vars. (465 active)
+<DWph=2> <it=  1> <et=33.89> <Mt= 0.06> <Spt= 0.27> <nCl=  2> <DB= 9192.8579> <Mlp= 9180.6088> <PB=9189.1> 
+<DWph=1> <it=  7> <et=36.70> <Mt= 0.07> <Spt= 2.74> <nCl= 69> <DB= 9180.4649> <Mlp= 9180.4649> <PB=9189.1> 
+<DWph=0> <it= 10> <et=38.09> <Mt= 0.01> <Spt= 1.38> <nCl=  7> <DB= 9180.4596> <Mlp= 9180.4596> <PB=9189.1> 
+ColGenEvalAlg final dual bound: 9180.46 (rounded: 9181)
+Gap improvement since the last cut separation : 0.0533256 (9179.97)
+----- Add fac. cuts : R1C(119), max.viol = 0.199646, aver.viol = 0.0780394, sep/add took 0.12/1.43 sec. -----
+6356 columns (6356 active), 269 dyn. constrs. (144 active), 584 art. vars. (459 active)
+<DWph=2> <it=  1> <et=40.46> <Mt= 0.04> <Spt= 0.70> <nCl=  0> <DB= 9193.0763> <Mlp= 9180.5496> <PB=9189.1> 
+<DWph=1> <it=  4> <et=42.24> <Mt= 0.02> <Spt= 1.75> <nCl= 13> <DB= 9180.5481> <Mlp= 9180.5481> <PB=9189.1> 
+<DWph=0> <it=  7> <et=44.33> <Mt= 0.01> <Spt= 2.07> <nCl= 11> <DB= 9180.5467> <Mlp= 9180.5467> <PB=9189.1> 
+ColGenEvalAlg final dual bound: 9180.55 (rounded: 9181)
+Gap improvement since the last cut separation : 0.010086 (9180.46)
+----- Add fac. cuts : R1C(63), max.viol = 0.116306, aver.viol = 0.0592969, sep/add took 0.16/0.74 sec. -----
+6471 columns (6471 active), 207 dyn. constrs. (100 active), 647 art. vars. (415 active)
+<DWph=2> <it=  1> <et=46.25> <Mt= 0.02> <Spt= 0.88> <nCl=  0> <DB= 9192.5593> <Mlp= 9180.5861> <PB=9189.1> 
+<DWph=1> <it=  3> <et=47.73> <Mt= 0.01> <Spt= 1.48> <nCl=  5> <DB= 9180.5861> <Mlp= 9180.5861> <PB=9189.1> 
+<DWph=0> <it=  6> <et=49.65> <Mt= 0.03> <Spt= 1.75> <nCl= 17> <DB= 9180.5809> <Mlp= 9180.5809> <PB=9189.1> 
+ColGenEvalAlg final dual bound: 9180.58 (rounded: 9181)
+Gap improvement since the last cut separation : 0.00398978 (9180.55)
+----- Add fac. cuts : R1C(69), max.viol = 0.129019, aver.viol = 0.0621191, sep/add took 0.12/0.89 sec. -----
+6533 columns (6533 active), 169 dyn. constrs. (109 active), 716 art. vars. (424 active)
+<DWph=2> <it=  1> <et=51.63> <Mt= 0.03> <Spt= 0.82> <nCl=  0> <DB= 9191.6029> <Mlp= 9180.6061> <PB=9189.1> 
+<DWph=1> <it=  3> <et=53.27> <Mt= 0.01> <Spt= 1.63> <nCl=  6> <DB= 9180.6052> <Mlp= 9180.6052> <PB=9189.1> 
+<DWph=0> <it=  5> <et=55.43> <Mt= 0.01> <Spt= 2.15> <nCl=  7> <DB= 9180.6040> <Mlp= 9180.6040> <PB=9189.1> 
+ColGenEvalAlg final dual bound: 9180.6 (rounded: 9181)
+Gap improvement since the last cut separation : 0.00272175 (9180.58)
+----- Cut generation is stopped due to tailing off -----
+**** Strong branching phase 1 is started *****
+SB phase 1 cand.  1 branch on x_149_3 (lhs=0.5081) : [ 9180.7414,  9180.8303], score = 0.03      <et=55.67>
+SB phase 1 cand.  2 branch on x_149_9 (lhs=0.4919) : [ 9180.7414,  9180.8303], score = 0.03      <et=55.75>
+SB phase 1 cand.  3 branch on x_140_2 (lhs=0.4885) : [ 9180.6352,  9180.6910], score = 0.00      <et=55.81>
+SB phase 1 cand.  4 branch on x_17_9 (lhs=0.4874)  : [ 9180.7827,  9180.7948], score = 0.03      <et=55.94>
+SB phase 1 cand.  5 branch on x_17_11 (lhs=0.5126) : [ 9180.7827,  9180.7948], score = 0.03      <et=56.04>
+SB phase 1 cand. 10 branch on x_124_13 (lhs=0.4730): [ 9180.6820,  9181.1215], score = 0.04      <et=56.53>
+SB phase 1 cand. 12 branch on x_76_6 (lhs=0.4703)  : [ 9180.7211,  9180.9197], score = 0.04      <et=56.71>
+SB phase 1 cand. 13 branch on x_71_3 (lhs=0.4698)  : [ 9180.7700,  9181.0658], score = 0.08      <et=56.82>
+SB phase 1 cand. 14 branch on x_71_15 (lhs=0.5302) : [ 9180.7700,  9181.0658], score = 0.08      <et=56.93>
+SB phase 1 cand. 19 branch on x_10_12 (lhs=0.4498) : [ 9180.8144,  9180.9316], score = 0.07      <et=57.41>
+SB phase 1 cand. 20 branch on x_10_4 (lhs=0.5502)  : [ 9180.8144,  9180.9371], score = 0.07      <et=57.5>
+SB phase 1 cand. 40 branch on x_24_10 (lhs=0.6260) : [ 9180.8535,  9181.0543], score = 0.11      <et=59.68>
+SB phase 1 cand. 41 branch on x_24_15 (lhs=0.3740) : [ 9180.8535,  9181.0543], score = 0.11      <et=59.78>
+SB phase 1 cand. 57 branch on x_104_10 (lhs=0.6617): [ 9180.7650,  9181.1811], score = 0.09      <et=61.5>
+SB phase 1 cand. 58 branch on x_104_5 (lhs=0.3383) : [ 9180.7650,  9181.1811], score = 0.09      <et=61.61>
+SB phase 1 cand. 59 branch on x_137_10 (lhs=0.6634): [ 9180.8489,  9180.9844], score = 0.09      <et=61.72>
+SB phase 1 cand. 75 branch on x_11_5 (lhs=0.3057)  : [ 9180.6858,  9182.0599], score = 0.12      <et=63.42>
+SB phase 1 cand. 96 branch on x_77_14 (lhs=0.7273) : [ 9180.7355,  9181.5480], score = 0.12      <et=65.83>
+SB phase 1 cand. 97 branch on x_77_1 (lhs=0.2727)  : [ 9180.7355,  9181.5480], score = 0.12      <et=65.96>
+**** Strong branching phase 2 is started *****
+<DWph=1> <it= 10> <et=71.65> <Mt= 0.08> <Spt= 5.25> <nCl=128> <DB= 9181.2860> <Mlp= 9181.2860> <PB=9189.1> 
+<DWph=1> <it=  5> <et=75.22> <Mt= 0.03> <Spt= 3.21> <nCl= 11> <DB= 9180.7283> <Mlp= 9180.7283> <PB=9189.1> 
+SB phase 2 cand.  1 branch on x_77_14 (lhs=0.7273): [ 9180.7283,  9181.2860], score = 0.08      <et=75.27>
+<DWph=1> <it=  8> <et=80.61> <Mt= 0.07> <Spt= 4.99> <nCl=117> <DB= 9181.2860> <Mlp= 9181.2860> <PB=9189.1> 
+<DWph=1> <it=  4> <et=84.19> <Mt= 0.02> <Spt= 3.24> <nCl= 14> <DB= 9180.7299> <Mlp= 9180.7299> <PB=9189.1> 
+SB phase 2 cand.  2 branch on x_77_1 (lhs=0.2727) : [ 9180.7299,  9181.2860], score = 0.09      <et=84.24>
+<DWph=1> <it=  7> <et=88.91> <Mt= 0.06> <Spt= 4.38> <nCl=104> <DB= 9181.7831> <Mlp= 9181.7831> <PB=9189.1> 
+<DWph=1> <it=  4> <et=92.33> <Mt= 0.02> <Spt= 3.13> <nCl=  4> <DB= 9180.6854> <Mlp= 9180.6854> <PB=9189.1> 
+SB phase 2 cand.  3 branch on x_11_5 (lhs=0.3057) : [ 9180.6854,  9181.7831], score = 0.10      <et=92.38>
+**** Strong branching phase 3 is started *****
+**** SB phase 3 evaluation of candidate 1, branch 1 ( x_11_5 >= 1 ), value = 9181.78
+<DWph=2> <it=  1> <et=93.29> <Mt= 0.00> <Spt= 0.59> <nCl=  0> <DB= 9194.0541> <Mlp= 9181.7831> <PB=9189.1> 
+<DWph=1> <it=  2> <et=94.11> <Mt= 0.00> <Spt= 0.82> <nCl=  0> <DB= 9181.7831> <Mlp= 9181.7831> <PB=9189.1> 
+<DWph=0> <it=  5> <et=95.93> <Mt= 0.02> <Spt= 1.80> <nCl= 24> <DB= 9181.7676> <Mlp= 9181.7676> <PB=9189.1> 
+Reduced cost fixing for graph G_12... took 0.12 sec., 16176 buck. arcs remain (93.8% from prev., 31.5% from max.)
+Run enumeration... took 0.23 sec. and not succeeded.
+Reduced cost fixing for graph G_2... took 0.2 sec., 16365 buck. arcs remain (94% from prev., 34.2% from max.)
+Run enumeration... took 0.19 sec. and not succeeded.
+Reduced cost fixing for graph G_5... took 0.1 sec., 14501 buck. arcs remain (86.1% from prev., 27.3% from max.)
+Run enumeration... took 0.23 sec. and not succeeded.
+Reduced cost fixing for graph G_1... took 0.1 sec., 14627 buck. arcs remain (92.9% from prev., 29.8% from max.)
+Run enumeration... took 0.15 sec. and not succeeded.
+Reduced cost fixing for graph G_14... took 0.09 sec., 16999 buck. arcs remain (91.3% from prev., 29.7% from max.)
+Run enumeration... took 0.18 sec. and not succeeded.
+Reduced cost fixing for graph G_13... took 0.14 sec., 16069 buck. arcs remain (94.8% from prev., 33.4% from max.)
+Run enumeration... took 0.17 sec. and not succeeded.
+Reduced cost fixing for graph G_6... took 0.1 sec., 16879 buck. arcs remain (93.3% from prev., 33.3% from max.)
+Run enumeration... took 0.15 sec. and not succeeded.
+Reduced cost fixing for graph G_9... took 0.11 sec., 17203 buck. arcs remain (90.4% from prev., 29.8% from max.)
+Run enumeration... took 0.17 sec. and not succeeded.
+Reduced cost fixing for graph G_8... took 0.1 sec., 13419 buck. arcs remain (90.5% from prev., 27.3% from max.)
+Run enumeration... took 0.36 sec. and not succeeded.
+Reduced cost fixing for graph G_15... took 0.12 sec., 15608 buck. arcs remain (90.9% from prev., 30% from max.)
+Run enumeration... took 0.17 sec. and not succeeded.
+Reduced cost fixing for graph G_7... took 0.15 sec., 16465 buck. arcs remain (96.8% from prev., 35% from max.)
+Run enumeration... took 0.13 sec. and not succeeded.
+Reduced cost fixing for graph G_4... took 0.13 sec., 19557 buck. arcs remain (92.9% from prev., 33.9% from max.)
+Run enumeration... took 0.12 sec. and not succeeded.
+Reduced cost fixing for graph G_3... took 0.1 sec., 15001 buck. arcs remain (94.7% from prev., 31.6% from max.)
+Run enumeration... took 0.15 sec. and not succeeded.
+Reduced cost fixing for graph G_11... took 0.12 sec., 15374 buck. arcs remain (90.6% from prev., 31.8% from max.)
+Run enumeration... took 0.12 sec. and not succeeded.
+Reduced cost fixing for graph G_10... took 0.07 sec., 18477 buck. arcs remain (93% from prev., 32.6% from max.)
+Run enumeration... took 0.15 sec. and not succeeded.
+ColGenEvalAlg final dual bound: 9181.77 (rounded: 9182)
+----- Add fac. cuts : R1C(146), max.viol = 0.22008, aver.viol = 0.0880867, sep/add took 0.31/2.25 sec. -----
+7672 columns (6936 active), 201 dyn. constrs. (169 active), 520 art. vars. (484 active)
+<DWph=2> <it=  1> <et=103.87> <Mt= 0.03> <Spt= 0.69> <nCl=  0> <DB= 9192.5813> <Mlp= 9181.9102> <PB=9189.1> 
+<DWph=1> <it=  6> <et=106.36> <Mt= 0.02> <Spt= 2.46> <nCl= 16> <DB= 9181.9080> <Mlp= 9181.9080> <PB=9189.1> 
+<DWph=0> <it=  8> <et=107.94> <Mt= 0.01> <Spt= 1.57> <nCl=  2> <DB= 9181.9073> <Mlp= 9181.9073> <PB=9189.1> 
+ColGenEvalAlg final dual bound: 9181.91 (rounded: 9182)
+Gap improvement since the last cut separation : 0.0190572 (9181.77)
+----- Add fac. cuts : R1C(41), max.viol = 0.126554, aver.viol = 0.0494393, sep/add took 0.11/0.48 sec. -----
+7825 columns (7089 active), 242 dyn. constrs. (82 active), 561 art. vars. (397 active)
+<DWph=2> <it=  1> <et=109.32> <Mt= 0.02> <Spt= 0.68> <nCl=  0> <DB= 9191.5142> <Mlp= 9181.9177> <PB=9189.1> 
+<DWph=1> <it=  2> <et=110.15> <Mt= 0.00> <Spt= 0.83> <nCl=  0> <DB= 9181.9177> <Mlp= 9181.9177> <PB=9189.1> 
+<DWph=0> <it=  4> <et=111.79> <Mt= 0.01> <Spt= 1.62> <nCl=  1> <DB= 9181.9175> <Mlp= 9181.9175> <PB=9189.1> 
+ColGenEvalAlg final dual bound: 9181.92 (rounded: 9182)
+Gap improvement since the last cut separation : 0.00140705 (9181.91)
+----- Add fac. cuts : R1C(32), max.viol = 0.0908293, aver.viol = 0.053024, sep/add took 0.24/0.67 sec. -----
+7905 columns (7169 active), 147 dyn. constrs. (79 active), 593 art. vars. (394 active)
+<DWph=2> <it=  1> <et=113.68> <Mt= 0.01> <Spt= 0.77> <nCl=  0> <DB= 9193.7306> <Mlp= 9181.9334> <PB=9189.1> 
+<DWph=1> <it=  4> <et=115.89> <Mt= 0.03> <Spt= 2.19> <nCl= 11> <DB= 9181.9322> <Mlp= 9181.9322> <PB=9189.1> 
+<DWph=0> <it=  6> <et=118.01> <Mt= 0.01> <Spt= 2.10> <nCl=  1> <DB= 9181.9322> <Mlp= 9181.9322> <PB=9189.1> 
+ColGenEvalAlg final dual bound: 9181.93 (rounded: 9182)
+Gap improvement since the last cut separation : 0.00205599 (9181.92)
+----- Cut generation is stopped due to tailing off -----
+**** SB phase 3 evaluation of candidate 1, branch 2 ( x_11_5 <= 0 ), value = 9180.69
+<DWph=2> <it=  1> <et=119.29> <Mt= 0.10> <Spt= 0.71> <nCl=  0> <DB= 9191.7101> <Mlp= 9180.6854> <PB=9189.1> 
+<DWph=1> <it=  4> <et=121.55> <Mt= 0.01> <Spt= 2.26> <nCl= 15> <DB= 9180.6854> <Mlp= 9180.6854> <PB=9189.1> 
+<DWph=0> <it=  8> <et=124.24> <Mt= 0.02> <Spt= 2.67> <nCl= 12> <DB= 9180.6775> <Mlp= 9180.6775> <PB=9189.1> 
+ColGenEvalAlg final dual bound: 9180.68 (rounded: 9181)
+----- Add fac. cuts : R1C(107), max.viol = 0.0777404, aver.viol = 0.0450331, sep/add took 0.35/1.19 sec. -----
+7414 columns (6704 active), 186 dyn. constrs. (153 active), 501 art. vars. (468 active)
+<DWph=2> <it=  1> <et=126.83> <Mt= 0.03> <Spt= 0.87> <nCl=  0> <DB= 9191.6242> <Mlp= 9180.7173> <PB=9189.1> 
+<DWph=1> <it=  6> <et=131.32> <Mt= 0.03> <Spt= 4.46> <nCl=  6> <DB= 9180.7156> <Mlp= 9180.7156> <PB=9189.1> 
+<DWph=0> <it=  8> <et=133.85> <Mt= 0.01> <Spt= 2.51> <nCl=  2> <DB= 9180.7155> <Mlp= 9180.7155> <PB=9189.1> 
+ColGenEvalAlg final dual bound: 9180.72 (rounded: 9181)
+Gap improvement since the last cut separation : 0.00450869 (9180.68)
+----- Add fac. cuts : R1C(24), max.viol = 0.0644817, aver.viol = 0.0480161, sep/add took 0.14/0.26 sec. -----
+7454 columns (6744 active), 210 dyn. constrs. (87 active), 525 art. vars. (402 active)
+<DWph=2> <it=  1> <et=135.24> <Mt= 0.02> <Spt= 0.87> <nCl=  0> <DB= 9192.0544> <Mlp= 9180.7263> <PB=9189.1> 
+<DWph=1> <it=  4> <et=137.74> <Mt= 0.03> <Spt= 2.47> <nCl=  4> <DB= 9180.7262> <Mlp= 9180.7262> <PB=9189.1> 
+<DWph=0> <it=  5> <et=139.13> <Mt= 0.00> <Spt= 1.39> <nCl=  0> <DB= 9180.7262> <Mlp= 9180.7262> <PB=9189.1> 
+ColGenEvalAlg final dual bound: 9180.73 (rounded: 9181)
+Gap improvement since the last cut separation : 0.00127674 (9180.72)
+----- Add fac. cuts : R1C(48), max.viol = 0.0608432, aver.viol = 0.030238, sep/add took 0.14/0.58 sec. -----
+7479 columns (6769 active), 174 dyn. constrs. (108 active), 573 art. vars. (423 active)
+<DWph=2> <it=  1> <et=140.89> <Mt= 0.01> <Spt= 0.91> <nCl=  0> <DB= 9192.0171> <Mlp= 9180.7286> <PB=9189.1> 
+<DWph=1> <it=  4> <et=143.68> <Mt= 0.02> <Spt= 2.77> <nCl=  4> <DB= 9180.7280> <Mlp= 9180.7280> <PB=9189.1> 
+[41m solve [00m

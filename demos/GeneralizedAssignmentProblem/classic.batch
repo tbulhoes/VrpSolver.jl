@@ -1,0 +1,20 @@
+# If you want to use VRPSolver script to run this batch, comment lines for the docker call (starting with /GAP/data) and uncomment lines below the VRPSolver script call (starting with data/).
+# docker call requires all paths being container paths (e.g. /GAP/data/Classic/gapD-5-100.txt -u 6354 --cfg /GAP/config/GAP_Classic.cfg)
+# VRPSolver script call requires that the paths (e.g. data/Classic/gapD-5-100.txt -u 6354 --cfg config/GAP_Classic.cfg) be relatives to the application directory
+# Tip: after a batch execution, call 'grep statistics out/classic.out -h | cut -c13-' to get the results as rows for a LaTeX table.
+
+# docker run --rm -v /ABSOLUTE_PATH_TO_GAP_APP:/GAP bapdock /GAP/src/run.jl -b /GAP/classic.batch &> out/classic.out 
+/GAP/data/Classic/gapD-5-100.txt -u 6354 --cfg /GAP/config/GAP_Classic.cfg
+/GAP/data/Classic/gapD-5-200.txt -u 12743 --cfg /GAP/config/GAP_Classic.cfg
+/GAP/data/Classic/gapD-10-100.txt -u 6348 --cfg /GAP/config/GAP_Classic.cfg
+/GAP/data/Classic/gapD-10-200.txt -u 12431 --cfg /GAP/config/GAP_Classic.cfg
+/GAP/data/Classic/gapD-20-100.txt -u 6186 --cfg /GAP/config/GAP_Classic.cfg
+#/GAP/data/Classic/gapD-20-200.txt -u 12245 --cfg /GAP/config/GAP_Classic.cfg
+
+# ./VRPSolver -b classic.batch &> out/classic.out
+#data/Classic/gapD-5-100.txt -u 6354 --cfg config/GAP_Classic.cfg
+#data/Classic/gapD-5-200.txt -u 12743 --cfg config/GAP_Classic.cfg
+#data/Classic/gapD-10-100.txt -u 6348 --cfg config/GAP_Classic.cfg
+#data/Classic/gapD-10-200.txt -u 12431 --cfg config/GAP_Classic.cfg
+#data/Classic/gapD-20-100.txt -u 6186 --cfg config/GAP_Classic.cfg
+##data/Classic/gapD-20-200.txt -u 12245 --cfg config/GAP_Classic.cfg

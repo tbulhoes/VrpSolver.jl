@@ -1,0 +1,72 @@
+Application parameters:
+  batch  =>  nothing
+  instance  =>  "../GeneralizedAssignmentProblem//data/toy.txt"
+  ub  =>  1.0e7
+  cfg  =>  "/home/eduardo/Dropbox/Pesquisa/VRPSolver/docker_build/VrpSolver.jl/GeneralizedAssignmentProblem/src/../config/GAP_Classic.cfg"
+VRPSolver warning: Interval set for resource 1 on source node (when source != sink) is ignored (by definition is [0.0,0.0])
+VRPSolver warning: Interval set for resource 1 on source node (when source != sink) is ignored (by definition is [0.0,0.0])
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+VRPSolver v0.4,  1/09/2020. Web: vrpsolver.math.u-bordeaux.fr
+Corresponds to the solver by Pessoa, Sadykov, Uchoa and Vanderbeck (2020)
+Paper: dx.doi.org/10.1007/s10107-020-01523-z
+USE THIS CODE ONLY FOR ACADEMIC PURPOSES AT YOUR OWN RISK
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+BaPCod v050b,  1/09/2020, © Inria Bordeaux, France (license expires 1/12/2021)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+VRPSolver parameters:
+GlobalTimeLimit = 21474836
+MaxNbOfBBtreeNodeTreated = 100000
+treeSearchStrategy = 1
+RCSPstopCutGenTimeThresholdInPricing = 10
+RCSPhardTimeThresholdInPricing = 20
+RCSPnumberOfBucketsPerVertex = 200
+RCSPdynamicBucketSteps = 0
+RCSPuseBidirectionalSearch = 1
+RCSPapplyReducedCostFixing = 1
+RCSPredCostFixingFalseGap = 0
+RCSPmaxNumOfColsPerIteration = 10
+RCSPmaxNumOfColsPerExactIteration = 10
+RCSPheurLabelingStrategy = 0
+StabilizationMinPhaseOfStage = 0
+RCSPmaxNumOfLabelsInEnumeration = 1000000
+RCSPmaxNumOfEnumeratedSolutions = 1000000
+RCSPmaxNumOfEnumSolutionsForMIP = 4000
+RCSPinitNGneighbourhoodSize = 0
+RCSPmaxNGneighbourhoodSize = 0
+RCSPrankOneCutsMaxNumPerRound = 100
+RCSPrankOneCutsMaxNumRows = 3
+RCSPrankOneCutsMemoryType = 2
+CutTailingOffThreshold = 0.02
+CutTailingOffCounterThreshold = 3
+SafeDualBoundScaleFactor = -1
+StrongBranchingPhaseOneCandidatesNumber = 100
+StrongBranchingPhaseOneTreeSizeEstimRatio = 0.3
+StrongBranchingPhaseTwoCandidatesNumber = 3
+StrongBranchingPhaseTwoTreeSizeEstimRatio = 0.1
+MaxTimeForRestrictedMasterIpHeur = -1
+DivingHeurUseDepthLimit = -1
+MaxLDSbreadth = 0
+MaxLDSdepth = 0
+New model incumbent solution 1e+07, TIME = 0h0m0s0t = 0
+Model is built TIME = 0h0m0s0t = 0
+************************************************************************************************
+**** BaB tree root node
+**** Local DB = -1e+12, global bounds : [ -1e+12 , 1e+07 ], TIME = 0h0m0s0t = 0
+**** 1 open nodes, 0 columns (0 active), 0 dyn. constrs. (0 active), 16 art. vars. (16 active)
+************************************************************************************************
+<DWph=2> <it=  3> <et=0.00> <Mt= 0.00> <Spt= 0.00> <nCl= 21> <DB=  449.0000> <Mlp=  449.0000> <PB=449> 
+<DWph=1> <it=  4> <et=0.00> <Mt= 0.00> <Spt= 0.00> <nCl=  0> <DB=  449.0000> <Mlp=  449.0000> <PB=449> 
+<DWph=0> <it=  5> <et=0.00> <Mt= 0.00> <Spt= 0.00> <nCl=  0> <DB=  449.0000> <Mlp=  449.0000> <PB=449> 
+ColGenEvalAlg final dual bound: 449 (rounded: 449)
+New model incumbent solution 449, TIME = 0h0m0s1t = 1
+************************************************************************************************
+Search is finished, global bounds : [ 449 , 449 ], TIME = 0h0m0s17t = 17
+************************************************************************************************
+[32mBaPCod : solution defined.[00m
+[41m solve [00m
+statistics_cols: instance & :Optimal & cutoff & :bcRecRootDb & :bcTimeRootEval & :bcCountNodeProc & :bcRecBestDb & :bcRecBestInc & :bcTimeMain \\
+statistics:  & 1 & 1.0e7 & 449.00 & 0.01 & 1 & 449.00 & 449 & 0.18 \\
+########################################################
+Objective value : 449.0
+machine 1:1 2 6 
+machine 2:3 4 5 

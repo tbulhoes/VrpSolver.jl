@@ -1,6 +1,4 @@
-include(joinpath(@__DIR__, "../../../src/VrpSolver.jl"))
-
-using .VrpSolver
+using VrpSolver
 using JuMP, ArgParse, CPLEX
 
 # using CPLEX

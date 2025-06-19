@@ -1,0 +1,102 @@
+#!/bin/bash
+
+# This script works if your can manage Docker as a non-root user (whitout sudo)
+# See the instruction at https://docs.docker.com/install/linux/linux-postinstall/
+
+GAP_APP_ABSOLUTE_PATH=$(echo "$(pwd)" | sed 's/ /\\ /g')
+
+if [ "$1" == '--help' ] || [ "$1" == '-h' ]  || [ "$1" == '' ]; then  
+   eval "docker run --rm -v ${GAP_APP_ABSOLUTE_PATH}:/GAP bapdock /GAP/src/run.jl --help"
+   exit 1
+fi
+
+if [ "$1" == '-it' ]; then 
+   eval "docker run -it --rm -v ${GAP_APP_ABSOLUTE_PATH}:/GAP bapdock"
+   exit 1
+fi
+
+ARGS=("$@")
+
+TO_MOUNT=( "$GAP_APP_ABSOLUTE_PATH:/GAP" ) # directories to mount into the container
+STR_ARGS=()
+
+check_mount() {
+   DIR=$1
+   TO_MOUNT=("${!3}")
+   STR_ARGS=("${!4}")
+   # get absolute path when relative is passed
+   if [ "${DIR:0:1}" != "/" ]; then DIR="$(echo "$(pwd)" | sed 's/ /\\ /g')/$DIR"; fi
+   TO_MOUNT+=( "$(dirname "$DIR"):/$2" ) # register to mount instance directory as $2
+   STR_ARGS+=( "$5 /$2/$(basename "$DIR")" )
+}
+
+if [ "$1" != '--batch' ] && [ "$1" != '-b' ]; then # single instance execution
+   check_mount "$(echo ${ARGS[0]} | sed 's/ /\\ /g')" "IN" TO_MOUNT[@] STR_ARGS[@] 
+
+   c=1
+   skip=0
+   for i in "${ARGS[@]:1}"; do
+      if [ $skip -eq 0 ]; then 
+         skip=1
+         if [ $i == "--cfg" ] || [ $i == "-c" ] ; then
+            check_mount "$(echo ${ARGS[c+1]} | sed 's/ /\\ /g')" "CFG" TO_MOUNT[@] STR_ARGS[@] $i
+         else
+            STR_ARGS+=( $i )
+            skip=0
+         fi 
+         c=$((c+1))
+      else
+         skip=0;c=$((c+1))
+      fi
+   done
+
+else # batch execution
+   check_mount "$(echo ".$2.tmp" | sed 's/ /\\ /g')" "BATCH" TO_MOUNT[@] STR_ARGS[@] $1
+   
+   # Convert paths at tmp file to the Docker filesystem  
+   while IFS= read -r line
+   do
+      lineaux=$(echo "$line" | sed 's/ //g')
+      if [ "${lineaux:0:1}" != "#" ] && [ "$lineaux" != "" ]; then
+         IFS=' ' read -r -a linearray <<< "$line" # split lineaux into array         
+
+         new_line=""
+
+         in_path="/GAP/" # convert instance path
+         j=0
+         for i in "${linearray[@]}"; do
+            in_path="${in_path} $i"
+            j=$((j+1))
+            if [ ${i: -1} != '\' ]; then
+               break
+            fi
+         done
+         new_line+="$(echo $in_path | sed 's/\/GAP\/ /\/GAP\//g') " 
+
+         for i in "${linearray[@]:$j}"; do
+            if [ $i == "--cfg" ] || [ $i == "-c" ] ; then
+               new_line+=" $i /GAP/"
+            else
+               new_line+="$i "
+            fi
+         done
+         echo "$new_line" >> .$2.tmp 
+      fi
+   done < "$2"
+fi
+
+STR_CALL="docker run --rm " 
+
+for((i=0; i < ${#TO_MOUNT[@]}; i++)); do
+   STR_CALL="$STR_CALL -v ${TO_MOUNT[$i]}"
+done
+STR_CALL="$STR_CALL bapdock /GAP/src/run.jl"
+for((i=0; i < ${#STR_ARGS[@]}; i++)); do
+   STR_CALL="$STR_CALL ${STR_ARGS[$i]}"
+done
+
+#echo $STR_CALL
+eval $STR_CALL
+if [ "$1" == '--batch' ] || [ "$1" == '-b' ]; then
+   rm -f .$2.tmp # delete temporary file
+fi
