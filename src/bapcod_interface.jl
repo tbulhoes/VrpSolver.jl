@@ -900,3 +900,64 @@ function wbcs_add_sep_cut!(
         rhs
     )
 end
+
+function getstatisticvalue(c_model::Ptr{Cvoid}, key::Symbol)
+    @bcs_ccall("getStatisticValue", Cdouble, (Ptr{Cvoid}, Ptr{Cchar}), c_model, "$key")
+end
+
+function getstatisticcounter(c_model::Ptr{Cvoid}, key::Symbol)
+    @bcs_ccall("getStatisticCounter", Clong, (Ptr{Cvoid}, Ptr{Cchar}), c_model, "$key")
+end
+
+function getstatistictime(c_model::Ptr{Cvoid}, key::Symbol)
+    @bcs_ccall("getStatisticTime", Clong, (Ptr{Cvoid}, Ptr{Cchar}), c_model, "$key")
+end
+
+function getstatistic(c_model::Ptr{Cvoid}, key::Symbol)
+    # Statistics available
+    # Values
+    bcvalues = [:bcRecBestDb, :bcRecBestInc, :bcRecRootDb, :bcRecRootInc]
+    # Timers
+    bctimers = [
+        :bcTimeBaP,
+        :bcTimeCgSpOracle,
+        :bcTimeColGen,
+        :bcTimeMain,
+        :bcTimeMastMPsol,
+        :bcTimeMastPrepareProbConfig,
+        :bcTimeRedCostFixAndEnum,
+        :bcTimeRoot,
+        :bcTimeRootEval,
+        :bcTimeSetMast,
+        :bcTimeSpMPsol,
+        :bcTimeSpSol,
+        :bcTimeSpUpdateProb,
+        :bcTimeCutSeparation,
+        :bcTimeAddCutToMaster,
+        :bcTimeEnumMPsol,
+        :bcTimeSBphase1,
+        :bcTimeSBphase2,
+        :bcTimePrimalHeur,
+    ]
+    # Counters
+    bccounters = [
+        :bcCountCg,
+        :bcCountCgSpSolverCall,
+        :bcCountCgT1,
+        :bcCountCol,
+        :bcCountMastSol,
+        :bcCountNodeGen,
+        :bcCountNodeProc,
+        :bcCountNodeTreat,
+        :bcCountPrimalSolSize,
+        :bcCountSpSol,
+        :bcCountCutInMaster,
+    ]
+    (!isempty(filter(x -> x != 0, bcvalues .== key))) &&
+        return getstatisticvalue(c_model, key)
+    (!isempty(filter(x -> x != 0, bccounters .== key))) &&
+        return getstatisticcounter(c_model, key)
+    (!isempty(filter(x -> x != 0, bctimers .== key))) &&
+        return getstatistictime(c_model, key)
+    error("Unknown statistic $key.")
+end

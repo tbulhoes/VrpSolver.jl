@@ -5,6 +5,7 @@ using MathOptInterface: MathOptInterface
 const MOI = MathOptInterface
 
 import Base.show
+using Printf
 
 include("bapcod_interface.jl")
 
@@ -2112,45 +2113,67 @@ function JuMP.optimize!(optimizer::VrpOptimizer)
     #    user_params="--MaxNbOfStagesInColGenProcedure 3 --colGenSubProbSolMode 3 --MipSolverMultiThread 1 --ApplyStrongBranchingEvaluation true")
     has_solution = register_solutions(optimizer, sol_ptr)
 
-    # println("statistics_cols: instance & :Optimal & cutoff & :bcRecRootDb & :bcTimeRootEval & :bcCountNodeProc & :bcRecBestDb & :bcRecBestInc & :bcTimeMain \\\\")
-    # print("statistics: $(optimizer.instance_name) & ")
+    println(
+        "statistics_cols: instance & :Optimal & cutoff & :bcRecRootDb & :bcTimeRootEval & :bcCountNodeProc & :bcRecBestDb & :bcRecBestInc & :bcTimeMain \\\\",
+    )
+    print("statistics: $(optimizer.instance_name) & ")
     # print("$(status == :Optimal ? 1 : 0) & ")
-    # print("$(optimizer.initUB) & ")
-    # @printf("%.2f & ", getstatistic(optimizer.formulation, :bcRecRootDb))
-    # @printf("%.2f & ", getstatistic(optimizer.formulation, :bcTimeRootEval) / 100)
-    # print("$(getstatistic(optimizer.formulation, :bcCountNodeProc)) & ")
-    # @printf("%.2f & ", getstatistic(optimizer.formulation, :bcRecBestDb))
-    # if has_solution
-    #    if optimizer.integer_objective
-    #       print("$(Int(floor(getstatistic(optimizer.formulation, :bcRecBestInc) + 0.5))) & ")
-    #    else
-    #       @printf("%.2f & ", getstatistic(optimizer.formulation, :bcRecBestInc))
-    #    end
-    #    optimizer.stats[:bcRecBestInc] = getstatistic(optimizer.formulation, :bcRecBestInc)
-    # else
-    #    print("-- & ")
-    # end
-    # @printf("%.2f \\\\\n", getstatistic(optimizer.formulation, :bcTimeMain) / 100)
-    # flush(stdout)
+    print("$(optimizer.initUB) & ")
+    @printf("%.2f & ", getstatistic(optimizer.bapcod_model, :bcRecRootDb))
+    @printf("%.2f & ", getstatistic(optimizer.bapcod_model, :bcTimeRootEval) / 100)
+    print("$(getstatistic(optimizer.bapcod_model, :bcCountNodeProc)) & ")
+    @printf("%.2f & ", getstatistic(optimizer.bapcod_model, :bcRecBestDb))
+    if has_solution
+        if optimizer.integer_objective
+            print(
+                "$(Int(floor(getstatistic(optimizer.bapcod_model, :bcRecBestInc) + 0.5))) & ",
+            )
+        else
+            @printf("%.2f & ", getstatistic(optimizer.bapcod_model, :bcRecBestInc))
+        end
+        optimizer.stats[:bcRecBestInc] = getstatistic(optimizer.bapcod_model, :bcRecBestInc)
+    else
+        print("-- & ")
+    end
+    @printf("%.2f \\\\\n", getstatistic(optimizer.bapcod_model, :bcTimeMain) / 100)
+    flush(stdout)
 
-    # optimizer.stats[:bcRecRootDb] = getstatistic(optimizer.formulation, :bcRecRootDb)
-    # optimizer.stats[:bcTimeRootEval] = getstatistic(optimizer.formulation, :bcTimeRootEval)
-    # optimizer.stats[:bcCountNodeProc] = getstatistic(optimizer.formulation, :bcCountNodeProc)
-    # optimizer.stats[:bcRecBestDb] = getstatistic(optimizer.formulation, :bcRecBestDb)
-    # optimizer.stats[:bcTimeMain] = getstatistic(optimizer.formulation, :bcTimeMain)
-    # optimizer.stats[:bcCountMastSol] = getstatistic(optimizer.formulation, :bcCountMastSol)
-    # optimizer.stats[:bcCountCol] = getstatistic(optimizer.formulation, :bcCountCol)
-    # optimizer.stats[:bcCountCutInMaster] = getstatistic(optimizer.formulation, :bcCountCutInMaster)
-    # optimizer.stats[:bcTimeMastMPsol] = getstatistic(optimizer.formulation, :bcTimeMastMPsol)
-    # optimizer.stats[:bcTimeCgSpOracle] = getstatistic(optimizer.formulation, :bcTimeCgSpOracle)
-    # optimizer.stats[:bcTimeCutSeparation] = getstatistic(optimizer.formulation, :bcTimeCutSeparation)
-    # optimizer.stats[:bcTimeAddCutToMaster] = getstatistic(optimizer.formulation, :bcTimeAddCutToMaster)
-    # optimizer.stats[:bcTimeSetMast] = getstatistic(optimizer.formulation, :bcTimeSetMast)
-    # optimizer.stats[:bcTimeRedCostFixAndEnum] = getstatistic(optimizer.formulation, :bcTimeRedCostFixAndEnum)
-    # optimizer.stats[:bcTimeEnumMPsol] = getstatistic(optimizer.formulation, :bcTimeEnumMPsol)
-    # optimizer.stats[:bcTimeSBphase1] = getstatistic(optimizer.formulation, :bcTimeSBphase1)
-    # optimizer.stats[:bcTimeSBphase2] = getstatistic(optimizer.formulation, :bcTimeSBphase2)
-    # optimizer.stats[:bcTimePrimalHeur] = getstatistic(optimizer.formulation, :bcTimePrimalHeur)
+    optimizer.stats[:bcRecRootDb] = getstatistic(optimizer.bapcod_model, :bcRecRootDb)
+    optimizer.stats[:bcTimeRootEval] = getstatistic(optimizer.bapcod_model, :bcTimeRootEval)
+    optimizer.stats[:bcCountNodeProc] = getstatistic(
+        optimizer.bapcod_model, :bcCountNodeProc
+    )
+    optimizer.stats[:bcRecBestDb] = getstatistic(optimizer.bapcod_model, :bcRecBestDb)
+    optimizer.stats[:bcTimeMain] = getstatistic(optimizer.bapcod_model, :bcTimeMain)
+    optimizer.stats[:bcCountMastSol] = getstatistic(optimizer.bapcod_model, :bcCountMastSol)
+    optimizer.stats[:bcCountCol] = getstatistic(optimizer.bapcod_model, :bcCountCol)
+    optimizer.stats[:bcCountCutInMaster] = getstatistic(
+        optimizer.bapcod_model, :bcCountCutInMaster
+    )
+    optimizer.stats[:bcTimeMastMPsol] = getstatistic(
+        optimizer.bapcod_model, :bcTimeMastMPsol
+    )
+    optimizer.stats[:bcTimeCgSpOracle] = getstatistic(
+        optimizer.bapcod_model, :bcTimeCgSpOracle
+    )
+    optimizer.stats[:bcTimeCutSeparation] = getstatistic(
+        optimizer.bapcod_model, :bcTimeCutSeparation
+    )
+    optimizer.stats[:bcTimeAddCutToMaster] = getstatistic(
+        optimizer.bapcod_model, :bcTimeAddCutToMaster
+    )
+    optimizer.stats[:bcTimeSetMast] = getstatistic(optimizer.bapcod_model, :bcTimeSetMast)
+    optimizer.stats[:bcTimeRedCostFixAndEnum] = getstatistic(
+        optimizer.bapcod_model, :bcTimeRedCostFixAndEnum
+    )
+    optimizer.stats[:bcTimeEnumMPsol] = getstatistic(
+        optimizer.bapcod_model, :bcTimeEnumMPsol
+    )
+    optimizer.stats[:bcTimeSBphase1] = getstatistic(optimizer.bapcod_model, :bcTimeSBphase1)
+    optimizer.stats[:bcTimeSBphase2] = getstatistic(optimizer.bapcod_model, :bcTimeSBphase2)
+    optimizer.stats[:bcTimePrimalHeur] = getstatistic(
+        optimizer.bapcod_model, :bcTimePrimalHeur
+    )
 
     # return status, has_solution
     return 0, has_solution
