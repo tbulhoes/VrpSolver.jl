@@ -786,3 +786,117 @@ function c_getArcs(solution::Ptr{Cvoid})
     )
     return [Int(aid) for aid in arcs_ids]
 end
+
+function wbcs_init_sep_routine!(
+    c_model::Ptr{Cvoid}, cb_c_fct::Ptr{Cvoid}, type_cb::Char, mpb_model::Any
+)
+    @bcs_ccall(
+        "initSepRoutine",
+        Cint,
+        (Ptr{Cvoid}, Ptr{Cvoid}, Any, Cchar),
+        c_model,
+        cb_c_fct,
+        mpb_model,
+        type_cb
+    )
+end
+
+function mastercallback(
+    solptr::Ptr{Cvoid}, userdata::Ptr{Cvoid}, cutlist::Ptr{Cvoid}, idfunctor::Cint
+)
+    optimizer = unsafe_pointer_to_objref(userdata)
+
+    # set the solution to be the node relaxation solution
+    if !register_solutions(optimizer, solptr)
+        return nothing
+    end
+
+    # call the user callbacks
+    for (_, callback_func) in optimizer.user_model.callbacks
+        callback_func()
+    end
+
+    # add the cuts to the cutlist
+    for (_, sepinfo) in optimizer.callbacks
+        for cut in sepinfo.to_add_constrs
+            # println("Adding cut: ", cut)
+            vars_coeffs = Cdouble[]
+            vars_idx = Cint[]
+            for i in eachindex(cut.vars)
+                for j in optimizer.optimizer_cols_info.uservar_to_colids[cut.vars[i]]
+                    push!(vars_coeffs, Cdouble(cut.coeffs[i]))
+                    push!(vars_idx, Cint(j + 1))
+                end
+            end
+            nb_vars = Cint(length(vars_coeffs))
+            if cut.sense == <=
+                cut_sense = '<'
+            elseif cut.sense == >=
+                cut_sense = '>'
+            elseif cut.sense == ==
+                cut_sense = '='
+            else
+                error("Unknown cut sense: $(cut.sense). It must be <=, >= or ==.")
+            end
+            wbcs_add_sep_cut!(
+                optimizer.bapcod_model,
+                cutlist,
+                vars_coeffs,
+                vars_idx,
+                nb_vars,
+                Cchar(cut_sense),
+                cut.rhs,
+            )
+        end
+    end
+
+    #clear the cuts to be added
+    for cb in values(optimizer.callbacks)
+        empty!(cb.to_add_constrs)
+    end
+
+    # clear de solution
+    optimizer.spsols_in_sol = SpSol[]
+    optimizer.unmapped_vars_in_sol = Dict{JuMP.VariableRef,Float64}()
+    nothing
+end
+
+function register_lazycb!(modelptr::Ptr{Cvoid}, optimizer::Any)
+    lazycb_c_fct = @cfunction(
+        mastercallback, Cvoid, (Ptr{Cvoid}, Ptr{Cvoid}, Ptr{Cvoid}, Cint)
+    )
+    status = wbcs_init_sep_routine!(modelptr, lazycb_c_fct, 'C', optimizer)
+    (status != 1) && error("Cannot initialize the lazy cut callback.")
+end
+
+function register_usercb!(modelptr::Ptr{Cvoid}, optimizer::Any)
+    usercb_c_fct = @cfunction(
+        mastercallback, Cvoid, (Ptr{Cvoid}, Ptr{Cvoid}, Ptr{Cvoid}, Cint)
+    )
+    status = wbcs_init_sep_routine!(modelptr, usercb_c_fct, 'F', optimizer)
+    (status != 1) && error("Cannot initialize the user cut callback.")
+end
+
+function wbcs_add_sep_cut!(
+    c_model::Ptr{Cvoid},
+    cutslist::Ptr{Cvoid},
+    vars_coeffs::Vector{Cdouble},
+    vars_idx::Vector{Cint},
+    nb_vars::Cint,
+    sense::Cchar,
+    rhs::Cdouble,
+)
+    @bcs_ccall(
+        "addSepCut",
+        Cint,
+        (Ptr{Cvoid}, Cint, Ptr{Cvoid}, Ptr{Cdouble}, Ptr{Cint}, Cint, Cchar, Cdouble),
+        c_model,
+        Cint(0),
+        cutslist,
+        vars_coeffs,
+        vars_idx,
+        nb_vars,
+        sense,
+        rhs
+    )
+end

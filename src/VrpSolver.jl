@@ -53,7 +53,7 @@ mutable struct VrpVertex
     packing_set::Int
     elem_set::Int
     res_bounds::Dict{Int,Tuple{Float64,Float64}} #only for binary resources
-    ng_set::Array{Int}
+    ng_set::Array{Int,1}
 end
 
 mutable struct VrpArc
@@ -62,10 +62,10 @@ mutable struct VrpArc
     head::Int
     packing_set::Int
     elem_set::Int
-    res_consumption::Array{Float64}
+    res_consumption::Array{Float64,1}
     res_bounds::Dict{Int,Tuple{Float64,Float64}} #only for non-binary resources
-    vars::Array{Tuple{JuMP.VariableRef,Float64}}
-    ng_set::Array{Int}
+    vars::Array{Tuple{JuMP.VariableRef,Float64},1}
+    ng_set::Array{Int,1}
 end
 
 mutable struct VrpResource
@@ -85,7 +85,7 @@ mutable struct VrpGraph
     arcs::Vector{VrpArc}
     arc_id_to_arc::Dict{Int,VrpArc}
     incoming_arcs::Vector{Vector{VrpArc}}
-    resources::Array{VrpResource}
+    resources::Array{VrpResource,1}
     multiplicity::Tuple{Int,Int}
     user_vertex_id_map::Dict{Int,Int}
     cycle_problem::Bool # true when source=sink for the user (vertices[sink_id] is only an internal vertex)
@@ -105,42 +105,38 @@ end
 
 mutable struct VrpModel
     formulation::JuMP.Model
-    graphs::Array{VrpGraph}
+    graphs::Array{VrpGraph,1}
     packing_sets::Array{Array{Tuple{VrpGraph,Int},1},1}
     packing_sets_type::SetType
     elem_sets_type::SetType
     define_covering_sets::Bool
     branching_priorities::Dict{String,Int}
-    branching_exp_families::Array{Any}
-    branching_exps::Array{Any}
+    branching_exp_families::Array{Any,1}
+    branching_exps::Array{Any,1}
     use_rank1_cuts::Bool
     optimizer::Any
     callbacks::Dict{String,Any}
-    cap_cuts_info::Array{CapacityCutInfo}
-    strongkpath_cuts_info::Array{CapacityCutInfo}
+    cap_cuts_info::Array{CapacityCutInfo,1}
+    strongkpath_cuts_info::Array{CapacityCutInfo,1}
     arcs_by_packing_set_pairs::Array{Array{Tuple{VrpGraph,VrpArc}},2}
     ryanfoster_constraints::Vector{Tuple{Integer,Integer,Bool}} # (firstPackSetId,secondPackSetId,together)
     save_standalone::String
 end
 
 mutable struct DynamicConstrInfo
-    vars::Array{Any}
-    coeffs::Array{Float64}
-    sense::Any
+    vars::Array{JuMP.VariableRef,1}
+    coeffs::Array{Float64,1}
+    sense::Function
     rhs::Float64
 end
 
 mutable struct CallbackInfo
     constr_name::String
-    sep_function::Any
-    aux_function::Any
-    to_add_constrs::Array{DynamicConstrInfo}
-    nb_added_constrs::Int
-    cb_idx::Int
+    to_add_constrs::Array{DynamicConstrInfo,1}
 end
 
 struct OptimizerColsInfo
-    uservar_to_colids::Dict{JuMP.VariableRef,Array{Int}}
+    uservar_to_colids::Dict{JuMP.VariableRef,Array{Int,1}}
     uservar_to_problem_type::Dict{JuMP.VariableRef,Symbol}
     cols_uservar::Vector{JuMP.VariableRef}
     cols_names::Vector{String}
@@ -223,7 +219,7 @@ function VrpModel(; save_standalone = "")
         Dict{String,Any}(),
         CapacityCutInfo[],
         CapacityCutInfo[],
-        Array{Array{Tuple{VrpGraph,VrpArc}},2}(undef, 0, 0),
+        Array{Array{Tuple{VrpGraph,VrpArc},1},2}(undef, 0, 0),
         Vector{Tuple{Integer,Integer,Bool}}(),
         save_standalone,
     )
@@ -248,7 +244,7 @@ function disable_rank1_cuts!(model::VrpModel)
 end
 
 """
-    VrpGraph(model::VrpModel, nodes::Array{Int}, source::Int, sink::Int, multiplicity::Tuple{Int,Int})
+    VrpGraph(model::VrpModel, nodes::Array{Int,1}, source::Int, sink::Int, multiplicity::Tuple{Int,Int})
 
 Create a graph for pricing.
 
@@ -262,7 +258,7 @@ In addition, it is necessary to map some formulation variables to the arcs of th
 See also: [`add_arc!`](@ref), [`add_resource!`](@ref), [`set_resource_bounds!`](@ref), [`set_arc_resource_bounds!`](@ref), [`set_arc_consumption!`](@ref), [`add_arc_var_mapping!`](@ref)
 
 # Arguments
-- `nodes::Array{Int}`: list of nodes (id's) of the `VrpGraph` 
+- `nodes::Array{Int,1}`: list of nodes (id's) of the `VrpGraph` 
 - `source::Int`: id of the source node
 - `sink::Int`: id of the sink node
 - `multiplicity::Tuple{Int,Int}`: multiplicity of the pricing subproblem, i.e., is given lower and upper bounds, respectively, on the number of paths from this graph in a solution.  
@@ -276,7 +272,11 @@ graph2 = VrpGraph(model, [1,2,3,4,5], 1, 1, (0,2)) # another graph whose paths m
 ```
 """
 function VrpGraph(
-    model::VrpModel, nodes::Array{Int}, source::Int, sink::Int, multiplicity::Tuple{Int,Int}
+    model::VrpModel,
+    nodes::Array{Int,1},
+    source::Int,
+    sink::Int,
+    multiplicity::Tuple{Int,Int},
 )
     vertices = [
         VrpVertex(nodes[i], i, -1, -1, Dict{Float64,Float64}(), Int[]) for
@@ -525,14 +525,14 @@ end
 
 #TODO: check for repeated variables before passing the model to bapcod
 """
-    add_arc_var_mapping!(graph::VrpGraph, arc_id::Int, vars::Array{Tuple{JuMP.VariableRef, Float64}})
+    add_arc_var_mapping!(graph::VrpGraph, arc_id::Int, vars::Array{Tuple{JuMP.VariableRef, Float64},1})
 
 Define variable mapping for an existing arc.
 
 # Arguments
 
 - `arc_id::Int`: id of the arc
-- `vars::Array{Tuple{JuMP.VariableRef, Float64}}`: variables to be mapped to the arc. It is a set of pairs of variable and coefficient. There are extensions where `vars` is `Array{JuMP.VariableRef}` and `JuMP.VariableRef` which consider all coefficients as `1.0`.
+- `vars::Array{Tuple{JuMP.VariableRef, Float64},1}`: variables to be mapped to the arc. It is a set of pairs of variable and coefficient. There are extensions where `vars` is `Array{JuMP.VariableRef,1}` and `JuMP.VariableRef` which consider all coefficients as `1.0`.
 
 # Examples
 ```julia
@@ -542,7 +542,7 @@ add_arc_var_mapping!(graph, arc_id, x) # map x
 ```
 """
 function add_arc_var_mapping!(
-    graph::VrpGraph, arc_id::Int, vars::Array{Tuple{JuMP.VariableRef,Float64}}
+    graph::VrpGraph, arc_id::Int, vars::Array{Tuple{JuMP.VariableRef,Float64},1}
 )
     check_id(arc_id, 1, length(graph.arcs))
     for (user_var, coeff) in vars
@@ -564,7 +564,7 @@ end
 function add_arc_var_mapping!(graph::VrpGraph, arc_id::Int, var::JuMP.VariableRef)
     add_arc_var_mapping!(graph, arc_id, [(var, 1.0)])
 end
-function add_arc_var_mapping!(graph::VrpGraph, arc_id::Int, vars::Array{JuMP.VariableRef})
+function add_arc_var_mapping!(graph::VrpGraph, arc_id::Int, vars::Array{JuMP.VariableRef,1})
     add_arc_var_mapping!(graph, arc_id, [(var, 1.0) for var in vars])
 end
 
@@ -581,14 +581,14 @@ function default_resbounds(graph::VrpGraph)
 end
 
 """
-    add_arc!(graph::VrpGraph, tail::Int, head::Int, vars::Array{Tuple{JuMP.VariableRef, Float64}} = Tuple{JuMP.VariableRef, Float64}[])
+    add_arc!(graph::VrpGraph, tail::Int, head::Int, vars::Array{Tuple{JuMP.VariableRef, Float64},1} = Tuple{JuMP.VariableRef, Float64}[])
 
 Add arc `(tail,head)` to `graph` and return the arc id. 
 
 Adding parallel arcs is allowed, since they will have different identifiers in `graph`.
 
 # Optional argument
-- `vars::Array{Tuple{JuMP.VariableRef, Float64}}`: variables to be mapped to the arc `(tail,head)`. It is a set of pairs of variable and coefficient. There are extensions where `vars` is `Array{JuMP.VariableRef}` and `JuMP.VariableRef` which consider all coefficients as `1.0`. 
+- `vars::Array{Tuple{JuMP.VariableRef, Float64},1}`: variables to be mapped to the arc `(tail,head)`. It is a set of pairs of variable and coefficient. There are extensions where `vars` is `Array{JuMP.VariableRef,1}` and `JuMP.VariableRef` which consider all coefficients as `1.0`. 
 
 # Examples
 ```julia
@@ -603,7 +603,7 @@ function add_arc!(
     graph::VrpGraph,
     tail::Int,
     head::Int,
-    vars::Array{Tuple{JuMP.VariableRef,Float64}} = Tuple{JuMP.VariableRef,Float64}[],
+    vars::Array{Tuple{JuMP.VariableRef,Float64},1} = Tuple{JuMP.VariableRef,Float64}[],
 )
     arc = []
     if graph.cycle_problem && (graph.user_vertex_id_map[head] == graph.source_id)
@@ -639,7 +639,7 @@ end
 function add_arc!(graph::VrpGraph, tail::Int, head::Int, var::JuMP.VariableRef)
     add_arc!(graph, tail, head, [(var, 1.0)])
 end
-function add_arc!(graph::VrpGraph, tail::Int, head::Int, vars::Array{JuMP.VariableRef})
+function add_arc!(graph::VrpGraph, tail::Int, head::Int, vars::Array{JuMP.VariableRef,1})
     add_arc!(graph, tail, head, [(var, 1.0) for var in vars])
 end
 
@@ -1187,7 +1187,7 @@ function define_elementarity_sets_distance_matrix!(
 end
 
 function extract_user_var_to_graphs(user_model::VrpModel)
-    var_to_graphs = Dict{JuMP.VariableRef,Array{Int}}()
+    var_to_graphs = Dict{JuMP.VariableRef,Array{Int,1}}()
     for graph_id in 1:length(user_model.graphs)
         for arc_id in 1:length(user_model.graphs[graph_id].arcs)
             for (var, coeff) in user_model.graphs[graph_id].arcs[arc_id].vars
@@ -1507,7 +1507,7 @@ function add_capacity_cut_separator!(
                 for (graph, arc) in arcs_by_psp[head, tail]
                     add_arc_var_mapping!(graph, arc.id, RCCsepX[(head, tail)])
                 end
-                arcs_by_psp[head, tail] = Array{Tuple{VrpGraph,VrpArc}}(undef, 0)
+                arcs_by_psp[head, tail] = Array{Tuple{VrpGraph,VrpArc},1}(undef, 0)
             end
         end
     end
@@ -1600,7 +1600,7 @@ function add_strongkpath_cut_separator!(
                 for (graph, arc) in arcs_by_psp[head, tail]
                     add_arc_var_mapping!(graph, arc.id, RCCsepX[(head, tail)])
                 end
-                arcs_by_psp[head, tail] = Array{Tuple{VrpGraph,VrpArc}}(undef, 0)
+                arcs_by_psp[head, tail] = Array{Tuple{VrpGraph,VrpArc},1}(undef, 0)
             end
         end
     end
@@ -1664,7 +1664,7 @@ function extract_optimizer_cols_info(user_model::VrpModel)
     user_var_to_graphs = extract_user_var_to_graphs(user_model)
     user_form = user_model.formulation
     mapped_names = get_mapped_containers_names(user_model)
-    uservar_to_colids = Dict{JuMP.VariableRef,Array{Int}}()
+    uservar_to_colids = Dict{JuMP.VariableRef,Vector{Int}}()
     uservar_to_problem_type = Dict{JuMP.VariableRef,Symbol}()
     cols_uservar = JuMP.VariableRef[]
     cols_names = String[]
@@ -1678,7 +1678,7 @@ function extract_optimizer_cols_info(user_model::VrpModel)
     user_vars = all_variables(user_form)
     for user_var in user_vars
         (var_container_name, _) = split_var_name(user_var)
-        colsids = []
+        colsids = Int[]
         if !haskey(user_var_to_graphs, user_var)
             if !(var_container_name in mapped_names) #master variable
                 push!(colsids, nextcolid)
@@ -1859,7 +1859,7 @@ function set_branching_priorities_in_optimizer(
     user_model::VrpModel, bapcod_model_ptr, optimizer_cols_info::OptimizerColsInfo
 )
 
-    # var_container_name_to_probs = Dict{String,Array{Int}}()
+    # var_container_name_to_probs = Dict{String,Array{Int,1}}()
     # for var_container_name in keys(var_container_name_to_ids)
     #    var_container_name_to_probs[var_container_name] = []
     # end
@@ -2092,6 +2092,14 @@ function JuMP.optimize!(optimizer::VrpOptimizer)
     optimizer.user_model.formulation.ext[:optimizer] = optimizer
 
     sol_ptr = new_sol!()
+    if !isempty(optimizer.user_model.callbacks)
+        register_lazycb!(optimizer.bapcod_model, optimizer)
+        for constr_name in keys(optimizer.user_model.callbacks)
+            optimizer.callbacks[constr_name] = CallbackInfo(
+                constr_name, DynamicConstrInfo[]
+            )
+        end
+    end
     c_optimize(optimizer.bapcod_model, sol_ptr)
 
     # optimizer.formulation.solver = BaPCodSolver(
@@ -2270,13 +2278,13 @@ function JuMP.value(user_var::JuMP.VariableRef)
 end
 
 """
-    get_values(optimizer::VrpOptimizer, user_vars::Array{JuMP.VariableRef})
+    get_values(optimizer::VrpOptimizer, user_vars::Array{JuMP.VariableRef,1})
 
 Get the values for an array of decision variables after optimization.
    
 
 """
-function get_values(optimizer::VrpOptimizer, user_vars::Array{JuMP.VariableRef})
+function get_values(optimizer::VrpOptimizer, user_vars::Array{JuMP.VariableRef,1})
     return [get_value(optimizer, user_var) for user_var in user_vars]
 end
 
@@ -2305,14 +2313,14 @@ function get_value(optimizer::VrpOptimizer, path_id::Int)
 end
 
 """
-    get_values(optimizer::VrpOptimizer, user_vars::Array{JuMP.VariableRef}, path_id::Int)
+    get_values(optimizer::VrpOptimizer, user_vars::Array{JuMP.VariableRef,1}, path_id::Int)
 
 Get the values for an array of decision variables that would be obtained from mapping only a single specific path variable (with value 1) to them. 
 Necessary for identifying which paths are part of the solution in some models.
 
 """
 function get_values(
-    optimizer::VrpOptimizer, user_vars::Array{JuMP.VariableRef}, path_id::Int
+    optimizer::VrpOptimizer, user_vars::Array{JuMP.VariableRef,1}, path_id::Int
 )
     return [get_value(optimizer, user_var, path_id) for user_var in user_vars]
 end
@@ -2374,7 +2382,6 @@ function add_dynamic_constr!(
 )
     constr_info = DynamicConstrInfo(vars, coeffs, sense, rhs)
     push!(optimizer.callbacks[constr_name].to_add_constrs, constr_info)
-    optimizer.callbacks[constr_name].nb_added_constrs += 1
 end
 
 """
@@ -2583,7 +2590,7 @@ function get_complete_formulation(model::VrpModel, paramfile::String)
     end
 
     #creating variables
-    vars_info = Dict{String,Array{Any}}()
+    vars_info = Dict{String,Array{Any,1}}()
     for user_var in user_vars
         if ignored_var(user_var)
             continue
@@ -2612,7 +2619,7 @@ function get_complete_formulation(model::VrpModel, paramfile::String)
     for (var_container_name, info) in vars_info
         vars_ids = [i[1] for i in info]
         vars_container = JuMP.JuMPArray(
-            JuMP.Array{JuMP.variabletype(formulation)}(JuMP.undef, JuMP.length(vars_ids)),
+            JuMP.Array{JuMP.variabletype(formulation),1}(JuMP.undef, JuMP.length(vars_ids)),
             (vars_ids,),
         )
         if var_container_name == "λ"
@@ -2794,10 +2801,10 @@ end
 
 #     m.ext[:var_branch_prio_dict] = Dict{Tuple{Symbol, Tuple, Symbol}, Cdouble}() # (varname, sp, where) => (priority)
 #     m.ext[:branching_rules] = Dict{Symbol, Any}()
-#     m.ext[:branching_expression] = Dict{Symbol, Array{Tuple{Tuple, Array, Array, Float64}}}()
+#     m.ext[:branching_expression] = Dict{Symbol, Array{Tuple{Tuple, Array, Array, Float64},1}}()
 
 #     # Callbacks
-#     m.ext[:oracles] = Array{Tuple{Tuple, Symbol, Function}}(undef, 0)
+#     m.ext[:oracles] = Array{Tuple{Tuple, Symbol, Function},1}(undef, 0)
 
 #     m.ext[:generic_vars] = Dict{Symbol, Tuple{JuMP.VariableRef, Function}}()
 #     m.ext[:generic_cstrs] = Dict{Int, Tuple{JuMP.JuMP.ConstraintRef, String, Function}}()
