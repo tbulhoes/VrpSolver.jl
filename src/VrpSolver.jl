@@ -1246,16 +1246,20 @@ function generate_pricing_networks(
         graph.net = c_net_ptr
         #resources and vertices
         for resource in graph.resources
-            wbcr_new_resource(c_net_ptr, resource.id - 1)
-            if resource.is_main
-                wbcr_set_as_main_resource(c_net_ptr, resource.id - 1, 0.0)
-            elseif resource.is_binary
-                wbcr_set_special_as_nondisposable_resource(
-                    c_net_ptr, resource_id_in_bapcod(resource, graph) - 1
-                )
-            end
-            if !resource.is_disposable
-                wbcr_set_as_nondisposable_resource(c_net_ptr, resource.id - 1)
+            if resource.is_binary
+                if !resource.is_disposable
+                    wbcr_set_special_as_nondisposable_resource(
+                        c_net_ptr, resource_id_in_bapcod(resource, graph) - 1
+                    )
+                end
+            else
+                wbcr_new_resource(c_net_ptr, resource.id - 1)
+                if resource.is_main
+                    wbcr_set_as_main_resource(c_net_ptr, resource.id - 1, 0.0)
+                end
+                if !resource.is_disposable
+                    wbcr_set_as_nondisposable_resource(c_net_ptr, resource.id - 1)
+                end
             end
             for vertex in graph.vertices
                 if resource.is_binary
