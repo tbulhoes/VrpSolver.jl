@@ -2002,7 +2002,7 @@ function VrpOptimizer(
         true,
         integer_objective,
         false, # CHECK
-        9,
+        11,
         [
             "",
             "--MaxNbOfStagesInColGenProcedure",
@@ -2013,6 +2013,8 @@ function VrpOptimizer(
             "1",
             "--ApplyStrongBranchingEvaluation",
             "true",
+            "-t",
+            baptreedot,
         ],
     )
 
@@ -2105,6 +2107,11 @@ function JuMP.optimize!(optimizer::VrpOptimizer)
             )
         end
     end
+
+    # emptying the solution stored in the optimizer
+    empty!(optimizer.unmapped_vars_in_sol)
+    empty!(optimizer.spsols_in_sol)
+
     c_optimize(optimizer.bapcod_model, sol_ptr)
 
     # optimizer.formulation.solver = BaPCodSolver(
@@ -2187,7 +2194,9 @@ function register_solutions(optimizer::VrpOptimizer, bapcodsol)
     unmapped_vars_in_sol = Dict{JuMP.VariableRef,Float64}()
 
     # computing sp sols
-    c_start(bapcodsol, bapcod_model)
+    if c_start(bapcodsol, bapcod_model) != 1
+        return false
+    end
     status = c_next(bapcodsol) # ignore master solution
     while status == 1
         subproblem_id = Int(c_getProblemFirstId(bapcodsol))
@@ -2223,6 +2232,7 @@ function register_solutions(optimizer::VrpOptimizer, bapcodsol)
     end
 
     optimizer.spsols_in_sol = spsols_in_sol
+    # CHECK: do we need this?
     if length(spsols_in_sol) == 0
         optimizer.unmapped_vars_in_sol = unmapped_vars_in_sol
         return false
