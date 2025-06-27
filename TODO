@@ -4,3 +4,5 @@
 4. Discutir se devemos garantir que exista pelo menos um path na solucao;
 5. Discutir as estatisticas;
 6. Discutir o arrendondamento do UB na funcao optimize!
+7. Testar se a definicao da prioridade de branching funciona no caso em nao tem indice na variavel
+8. Explicar na documentacao o que é uma ignored variable
