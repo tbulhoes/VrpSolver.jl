@@ -1678,7 +1678,7 @@ function extract_optimizer_cols_info(user_model::VrpModel)
     cols_ubs = Float64[]
     cols_costs = Float64[]
     cols_types = Char[]
-
+    obj = objective_function(user_form)
     nextcolid = 0
     user_vars = all_variables(user_form)
     for user_var in user_vars
@@ -1692,7 +1692,7 @@ function extract_optimizer_cols_info(user_model::VrpModel)
                 push!(cols_ubs, has_upper_bound(user_var) ? upper_bound(user_var) : Inf)
                 push!(cols_names, name(user_var))
                 push!(cols_uservar, user_var)
-                push!(cols_costs, get(objective_function(user_form).terms, user_var, 0.0))
+                push!(cols_costs, get(obj.terms, user_var, 0.0))
                 push!(
                     cols_types,
                     if is_integer(user_var)
@@ -1712,7 +1712,7 @@ function extract_optimizer_cols_info(user_model::VrpModel)
                 push!(cols_lbs, 0.0)
                 push!(cols_ubs, Inf)
                 push!(cols_uservar, user_var)
-                push!(cols_costs, get(objective_function(user_form).terms, user_var, 0.0))
+                push!(cols_costs, get(obj.terms, user_var, 0.0))
                 push!(
                     cols_types,
                     if is_integer(user_var)
@@ -1803,39 +1803,43 @@ function build_optimizer_vars_and_constrs(
         push!(constrs, (Symbol(name(constr_ref)), constr_idx, :DW_MASTER, -1))
         constr_idx += 1
     end
-    starts = Int[]
-    rows_id = Int[]
-    nonzeros = Float64[]
-    for user_var in user_vars
-        if haskey(optimizer_cols_info.uservar_to_colids, user_var) # var was not ignored
-            for _ in optimizer_cols_info.uservar_to_colids[user_var]
-                push!(starts, length(nonzeros))
-                for (constr_idx, constr_ref) in enumerate(constrs_refs)
-                    terms = JuMP.constraint_object(constr_ref).func.terms
-                    if haskey(terms, user_var)
-                        push!(rows_id, constr_idx - 1)
-                        push!(nonzeros, terms[user_var])
-                    end
+    nb_cols = sum(length(v) for (_, v) in optimizer_cols_info.uservar_to_colids)
+    rows_id_vec = [Int[] for _ in 1:nb_cols]
+    nonzeros_vec = [Float64[] for _ in 1:nb_cols]
+    for (constr_idx, constr_ref) in enumerate(constrs_refs)
+        terms = JuMP.constraint_object(constr_ref).func.terms
+        for (user_var, coeff) in terms
+            if haskey(optimizer_cols_info.uservar_to_colids, user_var) # var was not ignored
+                for id in optimizer_cols_info.uservar_to_colids[user_var]
+                    push!(rows_id_vec[id + 1], constr_idx - 1)
+                    push!(nonzeros_vec[id + 1], coeff)
                 end
             end
         end
     end
-
-    push!(starts, length(nonzeros))
-
+    nonzeros = vcat(nonzeros_vec...)
+    rows_id = vcat(rows_id_vec...)
+    starts = Int[]
+    pos = 0
+    for v in nonzeros_vec
+        push!(starts, pos)
+        pos += length(v)
+    end
+    push!(starts, pos)
     c_register_cstrs(bapcod_model_ptr, starts, rows_id, nonzeros, clbs, cubs, constrs)
 end
 
 function has_integer_objective(user_model::VrpModel, optimizer_cols_info::OptimizerColsInfo)
     user_form = user_model.formulation
     user_vars = all_variables(user_form)
+    obj = objective_function(user_form)
     for user_var in user_vars
         # ignored variable
         if isempty(optimizer_cols_info.uservar_to_colids[user_var])
             continue
         end
         # checking if the coefficient in the objective function is integral
-        var_cost = get(objective_function(user_form).terms, user_var, 0.0)
+        var_cost = get(obj.terms, user_var, 0.0)
         if modf(var_cost)[1] != 0.0
             return false
         end
@@ -2273,8 +2277,9 @@ function get_objective_value(optimizer::VrpOptimizer)
     user_form = optimizer.user_model.formulation
     user_vars = all_variables(user_form)
     obj_value = 0.0
+    obj = objective_function(user_form)
     for user_var in user_vars
-        obj_coeff = get(objective_function(user_form).terms, user_var, 0.0)
+        obj_coeff = get(obj.terms, user_var, 0.0)
         var_val = get_value(optimizer, user_var)
         obj_value += obj_coeff * var_val
     end
