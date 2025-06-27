@@ -1803,26 +1803,29 @@ function build_optimizer_vars_and_constrs(
         push!(constrs, (Symbol(name(constr_ref)), constr_idx, :DW_MASTER, -1))
         constr_idx += 1
     end
-    starts = Int[]
-    rows_id = Int[]
-    nonzeros = Float64[]
-    for user_var in user_vars
-        if haskey(optimizer_cols_info.uservar_to_colids, user_var) # var was not ignored
-            for _ in optimizer_cols_info.uservar_to_colids[user_var]
-                push!(starts, length(nonzeros))
-                for (constr_idx, constr_ref) in enumerate(constrs_refs)
-                    terms = JuMP.constraint_object(constr_ref).func.terms
-                    if haskey(terms, user_var)
-                        push!(rows_id, constr_idx - 1)
-                        push!(nonzeros, terms[user_var])
-                    end
+    nb_cols = sum(length(v) for (_, v) in optimizer_cols_info.uservar_to_colids)
+    rows_id_vec = [Int[] for _ in 1:nb_cols]
+    nonzeros_vec = [Float64[] for _ in 1:nb_cols]
+    for (constr_idx, constr_ref) in enumerate(constrs_refs)
+        terms = JuMP.constraint_object(constr_ref).func.terms
+        for (user_var, coeff) in terms
+            if haskey(optimizer_cols_info.uservar_to_colids, user_var) # var was not ignored
+                for id in optimizer_cols_info.uservar_to_colids[user_var]
+                    push!(rows_id_vec[id + 1], constr_idx - 1)
+                    push!(nonzeros_vec[id + 1], coeff)
                 end
             end
         end
     end
-
-    push!(starts, length(nonzeros))
-
+    nonzeros = vcat(nonzeros_vec...)
+    rows_id = vcat(rows_id_vec...)
+    starts = Int[]
+    pos = 0
+    for v in nonzeros_vec
+        push!(starts, pos)
+        pos += length(v)
+    end
+    push!(starts, pos)
     c_register_cstrs(bapcod_model_ptr, starts, rows_id, nonzeros, clbs, cubs, constrs)
 end
 
