@@ -1867,119 +1867,127 @@ end
 function set_branching_priorities_in_optimizer(
     user_model::VrpModel, bapcod_model_ptr, optimizer_cols_info::OptimizerColsInfo
 )
-
-    # var_container_name_to_probs = Dict{String,Array{Int,1}}()
-    # for var_container_name in keys(var_container_name_to_ids)
-    #    var_container_name_to_probs[var_container_name] = []
-    # end
-    # for (var_container_name, ids) in var_container_name_to_ids
-    #    for var_id in ids
-    #       prob = var_id[1]
-    #       if !(prob in var_container_name_to_probs[var_container_name])
-    #          push!(var_container_name_to_probs[var_container_name], prob)
-    #       end
-    #    end
-    # end
-
-    # #no subproblem branching
-    # for var_container_name in keys(var_container_name_to_ids)
-    #    for prob in var_container_name_to_probs[var_container_name]
-    #       branchingpriorityinsubproblem(formulation[Symbol(var_container_name)], (prob > 0 ? :DW_SP : :DW_MASTER, prob), -1)
-    #    end
-    # end
-
     user_vars = all_variables(user_model.formulation)
-    for (var_container_name, prior) in user_model.branching_priorities
-        priors = Tuple{Symbol,Symbol,Int,Float64}[]
+
+    # defining the priority of single variables
+    cols_priority_infos = Tuple{Symbol,Symbol,Int,Float64}[]
+    for (var_container_name, priority) in user_model.branching_priorities
         for user_var in user_vars
+            !haskey(optimizer_cols_info.uservar_to_colids, user_var) && continue # ignored variable
+            length(optimizer_cols_info.uservar_to_colids[user_var]) > 1 && continue # we will branch on an expression aggregating the mapped variables
             (container_name, _) = split_var_name(user_var)
             if var_container_name == container_name
                 for colid in optimizer_cols_info.uservar_to_colids[user_var]
                     push!(
-                        priors,
+                        cols_priority_infos,
                         (
                             Symbol(optimizer_cols_info.cols_names[colid + 1]),
                             optimizer_cols_info.cols_problems[colid + 1]...,
-                            prior,
+                            priority,
                         ),
                     )
                 end
             end
         end
-        if !isempty(prior)
-            c_vars_branching_priorities(bapcod_model_ptr, priors)
-        else
-            @error(
-                "VRPSolver error: setting branching priority for unexisting var container $(var_container_name)"
-            )
+    end
+    if !isempty(cols_priority_infos)
+        c_vars_branching_priorities(bapcod_model_ptr, cols_priority_infos)
+    end
+
+    ##########
+    # now we add branching on expressions
+    ##########
+
+    # first, we define the expressions corresponding to the aggregation of mapped variables.
+    # This is an automatic step, meaning that the user does not need to mind about this aggregation.
+    for (var_container_name, priority) in user_model.branching_priorities
+        expr_array_id = nothing
+        nb_exprs_in_array = 0
+        for user_var in user_vars
+            (container_name, _) = split_var_name(user_var)
+            if var_container_name == container_name
+                colsids = get(optimizer_cols_info.uservar_to_colids, user_var, [])
+                length(colsids) <= 1 && continue
+                if isnothing(expr_array_id)
+                    expr_array_id = register_branching_expression(
+                        bapcod_model_ptr, "aggr_" * container_name, Float64(priority)
+                    )
+                end
+                coeffs = [1.0 for _ in 1:length(colsids)]
+                add_branching_expression(
+                    bapcod_model_ptr, expr_array_id, nb_exprs_in_array + 1, colsids, coeffs
+                )
+                nb_exprs_in_array += 1
+            end
         end
     end
 
-    # #branching in master
-    # for var_container_name in keys(var_container_name_to_ids)
-    #    probs = var_container_name_to_probs[var_container_name]
-    #    if !haskey(user_model.branching_priorities, var_container_name)
-    #       #no branching, priority = -1
-    #       for prob in probs
-    #          branchingpriorityinmaster(formulation[Symbol(var_container_name)], (prob > 0 ? :DW_SP : :DW_MASTER, prob), -1)
-    #       end
-    #    else
-    #       priority = user_model.branching_priorities[var_container_name]
-    #       if 0 in probs
-    #          branchingpriorityinmaster(formulation[Symbol(var_container_name)], (:DW_MASTER, 0), priority)
-    #       end
-    #       #now we decide if subproblem variables are aggregated or not
-    #       aggregate = (length(probs) >= 3) || (!(0 in probs) && (length(probs) >= 2))
-    #       if aggregate
-    #          addbranching(formulation, :aggrsubprob_variables, Symbol(var_container_name),
-    #             priority=priority, highest_priority=0.5, number_of_ignored_indices=1, preprocessing=false)
-    #          #if we are aggregating, we disable branching on a single variable
-    #          for prob in probs
-    #             if prob != 0
-    #                branchingpriorityinmaster(formulation[Symbol(var_container_name)], (:DW_SP, prob), -1)
-    #             end
-    #          end
-    #       else
-    #          for prob in probs
-    #             if prob != 0
-    #                branchingpriorityinmaster(formulation[Symbol(var_container_name)], (:DW_SP, prob), priority)
-    #             end
-    #          end
-    #       end
-    #    end
-    # end
+    # second, we add the expression families defined by the user
+    for (exp_family, name, priority) in user_model.branching_exp_families
+        exp_array_id = register_branching_expression(
+            bapcod_model_ptr, name, Float64(priority)
+        )
+        for index in keys(exp_family)
+            expr = exp_family[index]
+            if expr.constant != 0.0
+                @error(
+                    "VRPSolver error: constant part of branching expression must be equal to zero"
+                )
+            end
+            colsids, coeffs = Int[], Float64[]
+            for user_var_idx in 1:length(expr.terms.keys)
+                user_var = expr.terms.keys[user_var_idx]
+                coeff = expr.terms.vals[user_var_idx]
+                if !haskey(optimizer_cols_info.uservar_to_colids, user_var)
+                    @error(
+                        "VRPSolver error: using ignored variable $(user_var) in a branching expression is not allowed"
+                    )
+                end
+                for colid in optimizer_cols_info.uservar_to_colids[user_var]
+                    push!(colsids, colid)
+                    push!(coeffs, coeff)
+                end
+            end
+            if isempty(colsids)
+                @warn "VRPSolver warning: branching expression with name $(name) and index $(index.I[1]) is empty"
+            else
+                add_branching_expression(
+                    bapcod_model_ptr, exp_array_id, index.I[1], colsids, coeffs
+                )
+            end
+        end
+    end
 
-    # #now we add branching on expressions
-    # #expression families
-    # for (exp_family, name, priority) in user_model.branching_exp_families
-    #    formulation.ext[:branching_expression][Symbol(name)] = Array{Tuple{Array,Array,Array,Float64},1}() #user index, coeffs, vars, priority
-    #    for index in keys(exp_family)
-    #       varids, coeffs = [], Float64[]
-    #       for user_var_idx in 1:length(exp_family[index...].vars)
-    #          user_var = exp_family[index...].vars[user_var_idx]
-    #          coeff = exp_family[index...].coeffs[user_var_idx]
-    #          for var in user_var_to_vars[user_var]
-    #             push!(varids, Cint(var.col))
-    #             push!(coeffs, Cdouble(coeff))
-    #          end
-    #       end
-    #       push!(formulation.ext[:branching_expression][Symbol(name)], (index, coeffs, varids, float(priority)))
-    #    end
-    # end
-    # #single expressions
-    # for (exp, name, priority) in user_model.branching_exps
-    #    formulation.ext[:branching_expression][Symbol(name)] = Array{Any,1}()
-    #    varids, coeffs = [], Float64[]
-    #    for user_var_idx in 1:length(exp.vars)
-    #       user_var = exp.vars[user_var_idx]
-    #       coeff = exp.coeffs[user_var_idx]
-    #       for var in user_var_to_vars[user_var]
-    #          push!(varids, Cint(var.col))
-    #          push!(coeffs, Cdouble(coeff))
-    #       end
-    #    end
-    #    push!(formulation.ext[:branching_expression][Symbol(name)], ((1,), coeffs, varids, float(priority)))
-    # end
+    # finally, we add the single expressions defined the user
+    for (expr, name, priority) in user_model.branching_exps
+        if expr.constant != 0.0
+            @error(
+                "VRPSolver error: constant part of branching expression must be equal to zero"
+            )
+        end
+        colsids, coeffs = Int[], Float64[]
+        for user_var_idx in 1:length(expr.terms.keys)
+            user_var = expr.terms.keys[user_var_idx]
+            coeff = expr.terms.vals[user_var_idx]
+            if !haskey(optimizer_cols_info.uservar_to_colids, user_var)
+                @error(
+                    "VRPSolver error: using ignored variable $(user_var) in a branching expression is not allowed"
+                )
+            end
+            for colid in optimizer_cols_info.uservar_to_colids[user_var]
+                push!(colsids, colid)
+                push!(coeffs, coeff)
+            end
+        end
+        if isempty(colsids)
+            @warn "VRPSolver warning: branching expression with name $(name) is empty"
+        else
+            exp_array_id = register_branching_expression(
+                bapcod_model_ptr, name, Float64(priority)
+            )
+            add_branching_expression(bapcod_model_ptr, exp_array_id, (1,), colsids, coeffs)
+        end
+    end
 end
 
 """
