@@ -2112,19 +2112,14 @@ function JuMP.optimize!(optimizer::VrpOptimizer)
     empty!(optimizer.unmapped_vars_in_sol)
     empty!(optimizer.spsols_in_sol)
 
-    c_optimize(optimizer.bapcod_model, sol_ptr)
-
-    # optimizer.formulation.solver = BaPCodSolver(
-    #    param_file=optimizer.param_file,
-    #    integer_objective=optimizer.integer_objective, baptreedot_file=optimizer.baptreedot_file,
-    #    user_params="--MaxNbOfStagesInColGenProcedure 3 --colGenSubProbSolMode 3 --MipSolverMultiThread 1 --ApplyStrongBranchingEvaluation true")
+    status = c_optimize(optimizer.bapcod_model, sol_ptr)
     has_solution = register_solutions(optimizer, sol_ptr)
 
     println(
         "statistics_cols: instance & :Optimal & cutoff & :bcRecRootDb & :bcTimeRootEval & :bcCountNodeProc & :bcRecBestDb & :bcRecBestInc & :bcTimeMain \\\\",
     )
     print("statistics: $(optimizer.instance_name) & ")
-    # print("$(status == :Optimal ? 1 : 0) & ")
+    print("$(status == :Optimal ? 1 : 0) & ")
     print("$(optimizer.initUB) & ")
     @printf("%.2f & ", getstatistic(optimizer.bapcod_model, :bcRecRootDb))
     @printf("%.2f & ", getstatistic(optimizer.bapcod_model, :bcTimeRootEval) / 100)
@@ -2182,8 +2177,7 @@ function JuMP.optimize!(optimizer::VrpOptimizer)
         optimizer.bapcod_model, :bcTimePrimalHeur
     )
 
-    # return status, has_solution
-    return 0, has_solution
+    return status, has_solution
 end
 
 function register_solutions(optimizer::VrpOptimizer, bapcodsol)

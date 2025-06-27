@@ -737,8 +737,24 @@ function new_oracle!(c_net::Ptr{Cvoid}, c_model::Ptr{Cvoid}, sp_type::Symbol, sp
     wbcr_create_oracle(c_net, c_model, sp_bctype, sp_bcid, false, "")
 end
 
+function getoptimalitygaptolerance(modelptr::Ptr{Cvoid})
+    ogt = Ref{Cdouble}(0.0)
+    status = @bcs_ccall(
+        "getOptimalityGapTolerance", Cint, (Ptr{Cvoid}, Ref{Cdouble}), modelptr, ogt
+    )
+    (status != 1) && error("Cannot retrieve the optimality gap tolerance.")
+    return ogt[]
+end
+
 function c_optimize(modelptr::Ptr{Cvoid}, solution::Ptr{Cvoid})
     @bcs_ccall("optimize", Cvoid, (Ptr{Cvoid}, Ptr{Cvoid}), modelptr, solution)
+    bestDb = getstatisticvalue(modelptr, :bcRecBestDb)
+    bestInc = getstatisticvalue(modelptr, :bcRecBestInc)
+    ϵ = getoptimalitygaptolerance(modelptr)
+    if bestDb - ϵ <= bestInc <= bestDb + ϵ
+        return :Optimal
+    end
+    return :UserLimit
 end
 
 function new_sol!()
