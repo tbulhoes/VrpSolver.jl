@@ -1,0 +1,6 @@
+1. Discutir: tipos e bounds de variaveis mapeadas; 
+2. Discutir expressoes de branching;
+3. Discutir se faz sentido termos um modelo sem grafos;
+4. Discutir se devemos garantir que exista pelo menos um path na solucao;
+5. Discutir as estatisticas;
+6. Discutir o arrendondamento do UB na funcao optimize!
