@@ -977,3 +977,17 @@ function getstatistic(c_model::Ptr{Cvoid}, key::Symbol)
         return getstatistictime(c_model, key)
     error("Unknown statistic $key.")
 end
+
+function get_enumerated_sp_sols(c_model::Ptr{Cvoid})
+    bcsol = new_sol!()
+    nbsols = Ref{Cint}(0)
+    @bcsol_ccall(
+        "enumerateAllColumns",
+        Cint,
+        (Ptr{Cvoid}, Ptr{Cvoid}, Ref{Cint}),
+        c_model,
+        bcsol,
+        nbsols
+    )
+    return bcsol
+end
