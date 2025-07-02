@@ -1721,7 +1721,6 @@ function extract_optimizer_cols_info(user_model::VrpModel)
                         "VRPSolver error: upper bound of mapped variables must be infinity. Add explicit master constraints to impose a different upper bound"
                     )
                 end
-                push!(cols_ubs, has_upper_bound(user_var) ? upper_bound(user_var) : Inf)
                 push!(cols_uservar, user_var)
                 push!(cols_costs, get(obj.terms, user_var, 0.0))
                 push!(
