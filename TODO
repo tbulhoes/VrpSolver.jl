@@ -4,3 +4,4 @@
 4. Discutir se devemos garantir que exista pelo menos um path na solucao;
 5. Discutir as estatisticas;
 6. Discutir o arrendondamento do UB na funcao optimize!
+7. Se o lower bound de variaveis mapeadas deve ser zero, então nao podemos aceitar coefs negativos no mapping
