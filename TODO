@@ -1,7 +1,8 @@
-1. Discutir: tipos e bounds de variaveis mapeadas; 
-2. Discutir expressoes de branching;
-3. Discutir se faz sentido termos um modelo sem grafos;
-4. Discutir se devemos garantir que exista pelo menos um path na solucao;
-5. Discutir as estatisticas;
-6. Discutir o arrendondamento do UB na funcao optimize!
-7. Se o lower bound de variaveis mapeadas deve ser zero, então nao podemos aceitar coefs negativos no mapping
+1. Throw an error if a model with no graph is defined
+2. Retrieve all stats described in the bapcod documentation
+3. Reduce the constant from 0.5 to a very small value in the rouding performed by function optimize!
+4. Forbid negative coefs in the mapping
+5. Investigate why the enumeration needs the parameter RCSPmaxNumOfLabelsInHeurEnumeration when trying 
+   to enumerate all paths for building the complete formulation)
+6. Investigate the use of unbounded unmapped vars
+7. The rank-1 cuts are enabled by default. Check if this is a problem when no packing sets are defined
