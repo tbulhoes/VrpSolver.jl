@@ -71,11 +71,10 @@ function run_cvrp(app::Dict{String,Any})
         (model, x) = build_model(data, app)
 
         # enum_paths, complete_form = get_complete_formulation(model, app["cfg"])
-        # complete_form.solver = CplexSolver() # set MIP solver
+        # set_optimizer(complete_form, CPLEX.Optimizer) # set MIP solver
         # print_enum_paths(enum_paths)
         # println(complete_form)
-        # solve(complete_form)
-        # println("Objective value: $(getobjectivevalue(complete_form))\n")
+        # optimize!(complete_form)
 
         optimizer = VrpOptimizer(model, app["cfg"], instance_name)
         set_cutoff!(optimizer, app["ub"])

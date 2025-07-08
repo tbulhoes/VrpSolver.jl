@@ -3,6 +3,8 @@
 3. Reduce the constant from 0.5 to a very small value in the rouding performed by function optimize!
 4. Forbid negative coefs in the mapping
 5. Investigate why the enumeration needs the parameter RCSPmaxNumOfLabelsInHeurEnumeration when trying 
-   to enumerate all paths for building the complete formulation)
+   to enumerate all paths for building the complete formulation
 6. Investigate the use of unbounded unmapped vars
 7. The rank-1 cuts are enabled by default. Check if this is a problem when no packing sets are defined
+8. Use function get_path_uservar_map in function register_solutions
+9. Test the definition of the branching priority in the case of variable with no index

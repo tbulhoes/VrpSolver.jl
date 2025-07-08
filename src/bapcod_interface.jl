@@ -977,3 +977,51 @@ function getstatistic(c_model::Ptr{Cvoid}, key::Symbol)
         return getstatistictime(c_model, key)
     error("Unknown statistic $key.")
 end
+
+function get_enumerated_sp_sols(c_model::Ptr{Cvoid})
+    bcsol = new_sol!()
+    nbsols = Ref{Cint}(0)
+    @bcsol_ccall(
+        "enumerateAllColumns",
+        Cint,
+        (Ptr{Cvoid}, Ptr{Cvoid}, Ref{Cint}),
+        c_model,
+        bcsol,
+        nbsols
+    )
+    return bcsol
+end
+
+function register_branching_expression(c_model::Ptr{Cvoid}, name::String, priority::Float64)
+    array_id = @bcm_ccall(
+        "registerBranchingExpression",
+        Cint,
+        (Ptr{Cvoid}, Ptr{UInt8}, Cdouble),
+        c_model,
+        name,
+        Cdouble(priority)
+    )
+    return Int(array_id)
+end
+
+function add_branching_expression(
+    mptr::Ptr{Cvoid},
+    expr_array_id::Int,
+    expr_id,
+    cols_ids::Vector{Int},
+    cols_coeffs::Vector{Float64},
+)
+    expr_bcid = Array{Cint,1}(undef, 8)
+    from_index_to_BaPCodindex(expr_id, expr_bcid)
+    @bcm_ccall(
+        "addBranchingExpression",
+        Cint,
+        (Ptr{Cvoid}, Cint, Ptr{Cint}, Ptr{Cint}, Ptr{Cdouble}, Cint),
+        mptr,
+        Cint(expr_array_id),
+        expr_bcid,
+        [Cint(colid) for colid in cols_ids],
+        [Cdouble(coeff) for coeff in cols_coeffs],
+        Cdouble(length(cols_ids))
+    )
+end

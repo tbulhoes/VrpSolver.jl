@@ -148,6 +148,10 @@ struct OptimizerColsInfo
     cols_types::Vector{Char}
 end
 
+function ignored_uservar(info::OptimizerColsInfo, user_var::JuMP.VariableRef)
+    !haskey(info.uservar_to_colids, user_var)
+end
+
 struct SpSol
     graph_id::Int
     multiplicity::Int
@@ -1819,7 +1823,7 @@ function build_optimizer_vars_and_constrs(
     for (constr_idx, constr_ref) in enumerate(constrs_refs)
         terms = JuMP.constraint_object(constr_ref).func.terms
         for (user_var, coeff) in terms
-            if haskey(optimizer_cols_info.uservar_to_colids, user_var) # var was not ignored
+            if !ignored_uservar(optimizer_cols_info, user_var)
                 for id in optimizer_cols_info.uservar_to_colids[user_var]
                     push!(rows_id_vec[id + 1], constr_idx - 1)
                     push!(nonzeros_vec[id + 1], coeff)
@@ -1844,8 +1848,7 @@ function has_integer_objective(user_model::VrpModel, optimizer_cols_info::Optimi
     user_vars = all_variables(user_form)
     obj = objective_function(user_form)
     for user_var in user_vars
-        # ignored variable
-        if isempty(optimizer_cols_info.uservar_to_colids[user_var])
+        if ignored_uservar(optimizer_cols_info, user_var)
             continue
         end
         # checking if the coefficient in the objective function is integral
@@ -1877,119 +1880,127 @@ end
 function set_branching_priorities_in_optimizer(
     user_model::VrpModel, bapcod_model_ptr, optimizer_cols_info::OptimizerColsInfo
 )
-
-    # var_container_name_to_probs = Dict{String,Array{Int,1}}()
-    # for var_container_name in keys(var_container_name_to_ids)
-    #    var_container_name_to_probs[var_container_name] = []
-    # end
-    # for (var_container_name, ids) in var_container_name_to_ids
-    #    for var_id in ids
-    #       prob = var_id[1]
-    #       if !(prob in var_container_name_to_probs[var_container_name])
-    #          push!(var_container_name_to_probs[var_container_name], prob)
-    #       end
-    #    end
-    # end
-
-    # #no subproblem branching
-    # for var_container_name in keys(var_container_name_to_ids)
-    #    for prob in var_container_name_to_probs[var_container_name]
-    #       branchingpriorityinsubproblem(formulation[Symbol(var_container_name)], (prob > 0 ? :DW_SP : :DW_MASTER, prob), -1)
-    #    end
-    # end
-
     user_vars = all_variables(user_model.formulation)
-    for (var_container_name, prior) in user_model.branching_priorities
-        priors = Tuple{Symbol,Symbol,Int,Float64}[]
+
+    # defining the priority of single variables
+    cols_priority_infos = Tuple{Symbol,Symbol,Int,Float64}[]
+    for (var_container_name, priority) in user_model.branching_priorities
         for user_var in user_vars
+            !haskey(optimizer_cols_info.uservar_to_colids, user_var) && continue # ignored variable
+            length(optimizer_cols_info.uservar_to_colids[user_var]) > 1 && continue # we will branch on an expression aggregating the mapped variables
             (container_name, _) = split_var_name(user_var)
             if var_container_name == container_name
                 for colid in optimizer_cols_info.uservar_to_colids[user_var]
                     push!(
-                        priors,
+                        cols_priority_infos,
                         (
                             Symbol(optimizer_cols_info.cols_names[colid + 1]),
                             optimizer_cols_info.cols_problems[colid + 1]...,
-                            prior,
+                            priority,
                         ),
                     )
                 end
             end
         end
-        if !isempty(prior)
-            c_vars_branching_priorities(bapcod_model_ptr, priors)
-        else
-            @error(
-                "VRPSolver error: setting branching priority for unexisting var container $(var_container_name)"
-            )
+    end
+    if !isempty(cols_priority_infos)
+        c_vars_branching_priorities(bapcod_model_ptr, cols_priority_infos)
+    end
+
+    ##########
+    # now we add branching on expressions
+    ##########
+
+    # first, we define the expressions corresponding to the aggregation of mapped variables.
+    # This is an automatic step, meaning that the user does not need to mind about this aggregation.
+    for (var_container_name, priority) in user_model.branching_priorities
+        expr_array_id = nothing
+        nb_exprs_in_array = 0
+        for user_var in user_vars
+            (container_name, _) = split_var_name(user_var)
+            if var_container_name == container_name
+                colsids = get(optimizer_cols_info.uservar_to_colids, user_var, [])
+                length(colsids) <= 1 && continue
+                if isnothing(expr_array_id)
+                    expr_array_id = register_branching_expression(
+                        bapcod_model_ptr, "aggr_" * container_name, Float64(priority)
+                    )
+                end
+                coeffs = [1.0 for _ in 1:length(colsids)]
+                add_branching_expression(
+                    bapcod_model_ptr, expr_array_id, nb_exprs_in_array + 1, colsids, coeffs
+                )
+                nb_exprs_in_array += 1
+            end
         end
     end
 
-    # #branching in master
-    # for var_container_name in keys(var_container_name_to_ids)
-    #    probs = var_container_name_to_probs[var_container_name]
-    #    if !haskey(user_model.branching_priorities, var_container_name)
-    #       #no branching, priority = -1
-    #       for prob in probs
-    #          branchingpriorityinmaster(formulation[Symbol(var_container_name)], (prob > 0 ? :DW_SP : :DW_MASTER, prob), -1)
-    #       end
-    #    else
-    #       priority = user_model.branching_priorities[var_container_name]
-    #       if 0 in probs
-    #          branchingpriorityinmaster(formulation[Symbol(var_container_name)], (:DW_MASTER, 0), priority)
-    #       end
-    #       #now we decide if subproblem variables are aggregated or not
-    #       aggregate = (length(probs) >= 3) || (!(0 in probs) && (length(probs) >= 2))
-    #       if aggregate
-    #          addbranching(formulation, :aggrsubprob_variables, Symbol(var_container_name),
-    #             priority=priority, highest_priority=0.5, number_of_ignored_indices=1, preprocessing=false)
-    #          #if we are aggregating, we disable branching on a single variable
-    #          for prob in probs
-    #             if prob != 0
-    #                branchingpriorityinmaster(formulation[Symbol(var_container_name)], (:DW_SP, prob), -1)
-    #             end
-    #          end
-    #       else
-    #          for prob in probs
-    #             if prob != 0
-    #                branchingpriorityinmaster(formulation[Symbol(var_container_name)], (:DW_SP, prob), priority)
-    #             end
-    #          end
-    #       end
-    #    end
-    # end
+    # second, we add the expression families defined by the user
+    for (exp_family, name, priority) in user_model.branching_exp_families
+        exp_array_id = register_branching_expression(
+            bapcod_model_ptr, name, Float64(priority)
+        )
+        for index in keys(exp_family)
+            expr = exp_family[index]
+            if expr.constant != 0.0
+                @error(
+                    "VRPSolver error: constant part of branching expression must be equal to zero"
+                )
+            end
+            colsids, coeffs = Int[], Float64[]
+            for user_var_idx in 1:length(expr.terms.keys)
+                user_var = expr.terms.keys[user_var_idx]
+                coeff = expr.terms.vals[user_var_idx]
+                if !haskey(optimizer_cols_info.uservar_to_colids, user_var)
+                    @error(
+                        "VRPSolver error: using ignored variable $(user_var) in a branching expression is not allowed"
+                    )
+                end
+                for colid in optimizer_cols_info.uservar_to_colids[user_var]
+                    push!(colsids, colid)
+                    push!(coeffs, coeff)
+                end
+            end
+            if isempty(colsids)
+                @warn "VRPSolver warning: branching expression with name $(name) and index $(index.I[1]) is empty"
+            else
+                add_branching_expression(
+                    bapcod_model_ptr, exp_array_id, index.I[1], colsids, coeffs
+                )
+            end
+        end
+    end
 
-    # #now we add branching on expressions
-    # #expression families
-    # for (exp_family, name, priority) in user_model.branching_exp_families
-    #    formulation.ext[:branching_expression][Symbol(name)] = Array{Tuple{Array,Array,Array,Float64},1}() #user index, coeffs, vars, priority
-    #    for index in keys(exp_family)
-    #       varids, coeffs = [], Float64[]
-    #       for user_var_idx in 1:length(exp_family[index...].vars)
-    #          user_var = exp_family[index...].vars[user_var_idx]
-    #          coeff = exp_family[index...].coeffs[user_var_idx]
-    #          for var in user_var_to_vars[user_var]
-    #             push!(varids, Cint(var.col))
-    #             push!(coeffs, Cdouble(coeff))
-    #          end
-    #       end
-    #       push!(formulation.ext[:branching_expression][Symbol(name)], (index, coeffs, varids, float(priority)))
-    #    end
-    # end
-    # #single expressions
-    # for (exp, name, priority) in user_model.branching_exps
-    #    formulation.ext[:branching_expression][Symbol(name)] = Array{Any,1}()
-    #    varids, coeffs = [], Float64[]
-    #    for user_var_idx in 1:length(exp.vars)
-    #       user_var = exp.vars[user_var_idx]
-    #       coeff = exp.coeffs[user_var_idx]
-    #       for var in user_var_to_vars[user_var]
-    #          push!(varids, Cint(var.col))
-    #          push!(coeffs, Cdouble(coeff))
-    #       end
-    #    end
-    #    push!(formulation.ext[:branching_expression][Symbol(name)], ((1,), coeffs, varids, float(priority)))
-    # end
+    # finally, we add the single expressions defined the user
+    for (expr, name, priority) in user_model.branching_exps
+        if expr.constant != 0.0
+            @error(
+                "VRPSolver error: constant part of branching expression must be equal to zero"
+            )
+        end
+        colsids, coeffs = Int[], Float64[]
+        for user_var_idx in 1:length(expr.terms.keys)
+            user_var = expr.terms.keys[user_var_idx]
+            coeff = expr.terms.vals[user_var_idx]
+            if !haskey(optimizer_cols_info.uservar_to_colids, user_var)
+                @error(
+                    "VRPSolver error: using ignored variable $(user_var) in a branching expression is not allowed"
+                )
+            end
+            for colid in optimizer_cols_info.uservar_to_colids[user_var]
+                push!(colsids, colid)
+                push!(coeffs, coeff)
+            end
+        end
+        if isempty(colsids)
+            @warn "VRPSolver warning: branching expression with name $(name) is empty"
+        else
+            exp_array_id = register_branching_expression(
+                bapcod_model_ptr, name, Float64(priority)
+            )
+            add_branching_expression(bapcod_model_ptr, exp_array_id, (1,), colsids, coeffs)
+        end
+    end
 end
 
 """
@@ -2502,32 +2513,22 @@ function show(io::IO, graph::VrpGraph)
     flush(stdout)
 end
 
-function get_enum_paths(model::VrpModel, paramfile::String)
-    optimizer = VrpOptimizer(model, paramfile, "")
-    optimizer.formulation.ext[:complete_formulation] = true
-    optimizer.formulation.solver = BaPCodSolver(;
-        param_file = optimizer.param_file,
-        integer_objective = optimizer.integer_objective,
-        baptreedot_file = optimizer.baptreedot_file,
-        user_params = "--MaxNbOfStagesInColGenProcedure 3 --colGenSubProbSolMode 3 --MipSolverMultiThread 1 --ApplyStrongBranchingEvaluation true",
-    )
-    solve(optimizer.formulation)
+function get_enum_paths(user_model::VrpModel, paramfile::String)
+    optimizer = VrpOptimizer(user_model, paramfile)
     paths = []
-    bcsol = BaPCod.new!()
-    nb = BaPCod.getenumeratedcols(optimizer.formulation.internalModel.inner, bcsol)
-    status = BaPCod.getnextsolution(bcsol)
+    bcsol = get_enumerated_sp_sols(optimizer.bapcod_model)
+    status = c_next(bcsol)
     while status == 1
-        graph_id = BaPCod.c_get_prob_first_id(bcsol)
-        bapcodarcids = BaPCod.c_get_sol_arcs_ids(bcsol)
-        graph = model.graphs[graph_id]
+        graph_id = c_getProblemFirstId(bcsol) + 1
+        bapcodarcids = c_getArcs(bcsol)
+        graph = user_model.graphs[graph_id]
         path = Int[]
         for bid in bapcodarcids
-            rcsp_id = graph.net.bcid_2pos[bid]
-            arc_id = graph.arc_bapcod_id_to_id[rcsp_id]
+            arc_id = graph.arc_bapcod_id_to_id[bid]
             push!(path, arc_id)
         end
         push!(paths, (graph, path))
-        status = BaPCod.getnextsolution(bcsol)
+        status = c_next(bcsol)
     end
     return paths
 end
@@ -2618,165 +2619,98 @@ println("Objective value: ", getobjectivevalue(complete_form))
 """
 function get_complete_formulation(model::VrpModel, paramfile::String)
     paths = get_enum_paths(model, paramfile)
-    formulation = JuMP.Model()
+
+    optimizer_cols_info = extract_optimizer_cols_info(model)
 
     user_form = model.formulation
-    user_var_to_graphs = extract_user_var_to_graphs(model)
-    user_var_to_var = Dict{JuMP.VariableRef,JuMP.VariableRef}()
-    user_vars = [JuMP.VariableRef(user_form, i) for i in 1:(user_form.numCols)]
-    mapped_names = get_mapped_containers_names(model)
-    ignored_names = get_ignored_containers_names(model, mapped_names)
+    formulation, orig_to_copied_uservar = copy_jump_model(user_form, optimizer_cols_info)
 
-    function ignored_var(user_var)
-        (var_container_name, var_id) = split_var_name(user_var)
-        if (var_container_name in ignored_names) && !haskey(user_var_to_graphs, user_var)
-            return true
-        end
-        return false
+    # creating lamba variables (path variables)
+    lambda_vars = []
+    for i in 1:length(paths)
+        v = @variable(formulation, base_name = "λ[$i]", lower_bound = 0, integer = true)
+        push!(lambda_vars, v)
     end
 
-    #creating variables
-    vars_info = Dict{String,Array{Any,1}}()
-    for user_var in user_vars
-        if ignored_var(user_var)
-            continue
-        end
-        (var_container_name, var_id) = split_var_name(user_var)
-        if length(var_id) == 1
-            var_id = var_id[1]
-        end
-        if !haskey(vars_info, var_container_name)
-            vars_info[var_container_name] = []
-        end
-        push!(
-            vars_info[var_container_name],
-            (
-                var_id,
-                user_var,
-                getcategory(user_var),
-                getlowerbound(user_var),
-                getupperbound(user_var),
-            ),
-        )
-    end
-    vars_info["λ"] = [(i, nothing, :Int, 0, Inf) for i in 1:length(paths)] #lambda variables
-
-    lambda_container = nothing
-    for (var_container_name, info) in vars_info
-        vars_ids = [i[1] for i in info]
-        vars_container = JuMP.JuMPArray(
-            JuMP.Array{JuMP.variabletype(formulation),1}(JuMP.undef, JuMP.length(vars_ids)),
-            (vars_ids,),
-        )
-        if var_container_name == "λ"
-            lambda_container = vars_container
-        end
-        for (id, user_var, cat, lb, ub) in info
-            JuMP.coloncheck(id)
-            vars_container[id] = JuMP.constructvariable!(
-                formulation,
-                msg -> error("Error when VrpSolver constructed variable :", msg),
-                -Inf,
-                Inf,
-                :Default,
-                JuMP.EMPTYSTRING,
-                NaN,
-            )
-            setcategory(vars_container[id], cat)
-            setlowerbound(vars_container[id], lb)
-            setupperbound(vars_container[id], ub)
-            if user_var != nothing
-                user_var_to_var[user_var] = vars_container[id]
-            end
-        end
-        JuMP.pushmeta!(vars_container, :model, formulation)
-        JuMP.push!(formulation.dictList, vars_container)
-        JuMP.registervar(formulation, Symbol(var_container_name), vars_container)
-        JuMP.storecontainerdata(
-            formulation,
-            vars_container,
-            Symbol(var_container_name),
-            (vars_ids,),
-            JuMP.IndexPair[JuMP.IndexPair(:a, :vars_ids)],
-            Expr(:copyast, :((QuoteNode(:(()))))),
-        )
-    end
-
-    #computing uservar_map for paths
-    paths_uservar_map = []
+    # mapping constraints
+    paths_uservar_maps = []
     for (graph, path) in paths
-        push!(paths_uservar_map, get_path_uservar_map(path, graph))
+        push!(paths_uservar_maps, get_path_uservar_map(path, graph))
     end
-    #creating objective function
-    if getobjectivesense(user_form) == :Max
-        error("VrpSolver does not handle maximization problems")
-    end
-    coeffs, vars = [], []
-    for (coeff, user_var) in linearterms(user_form.obj.aff)
-        if ignored_var(user_var)
-            continue
-        end
-        push!(coeffs, coeff)
-        push!(vars, user_var_to_var[user_var])
-    end
-    JuMP.setobjective(formulation, :Min, AffExpr(vars, coeffs, user_form.obj.aff.constant))
-
-    #creating constraints
-    for constr in user_form.linconstr
-        coeffs = []
-        vars = []
-        for (coeff, user_var) in linearterms(constr.terms)
-            if ignored_var(user_var)
-                continue
-            end
-            push!(coeffs, coeff)
-            push!(vars, user_var_to_var[user_var])
-        end
-        JuMP.addconstraint(
-            formulation, LinearConstraint(AffExpr(vars, coeffs, 0.0), constr.lb, constr.ub)
-        )
-    end
-
-    #mapping constraints
-    for user_var in user_vars
-        if haskey(user_var_to_graphs, user_var)
+    for (orig_user_var, copied_user_var) in orig_to_copied_uservar
+        if optimizer_cols_info.uservar_to_problem_type[orig_user_var] == :DW_SP
             coeffs = [1]
-            vars = [user_var_to_var[user_var]]
+            vars = [copied_user_var]
             #lambda vars
-            for (id, (graph, path)) in enumerate(paths)
-                if haskey(paths_uservar_map[id], user_var)
-                    push!(coeffs, -paths_uservar_map[id][user_var])
-                    push!(vars, lambda_container[id])
+            for (id, _) in enumerate(paths)
+                if haskey(paths_uservar_maps[id], orig_user_var)
+                    push!(coeffs, -paths_uservar_maps[id][orig_user_var])
+                    push!(vars, lambda_vars[id])
                 end
             end
-            JuMP.addconstraint(
-                formulation, LinearConstraint(AffExpr(vars, coeffs, 0.0), 0.0, 0.0)
-            )
+            expr = JuMP.AffExpr()
+            for (v, c) in zip(vars, coeffs)
+                expr += c * v
+            end
+            @constraint(formulation, expr in MOI.EqualTo(0.0))
         end
     end
 
-    #convexity constraint
+    # convexity constraints
     for graph in model.graphs
-        coeffs = []
-        vars = []
-        #lambda vars
-        for (id, (g, path)) in enumerate(paths)
+        expr = JuMP.AffExpr()
+        for (id, (g, _)) in enumerate(paths)
             if g == graph
-                push!(coeffs, 1)
-                push!(vars, lambda_container[id])
+                expr += lambda_vars[id]
             end
         end
-        JuMP.addconstraint(
-            formulation,
-            LinearConstraint(AffExpr(vars, coeffs, 0.0), -Inf, graph.multiplicity[2]),
-        )
-        JuMP.addconstraint(
-            formulation,
-            LinearConstraint(AffExpr(vars, coeffs, 0.0), graph.multiplicity[1], Inf),
-        )
+        @constraint(formulation, expr in MOI.GreaterThan(graph.multiplicity[1]))
+        @constraint(formulation, expr in MOI.LessThan(graph.multiplicity[2]))
     end
 
     return paths, formulation
+end
+
+function copy_jump_model(original::JuMP.Model, optimizer_cols_info::OptimizerColsInfo)
+    copied_model = Model()
+
+    function substitute_affexpr(expr::JuMP.AffExpr, varmap)
+        new_expr = JuMP.AffExpr(constant(expr))
+        for (coef, v) in linear_terms(expr)
+            if haskey(varmap, v) # to skip ignored vars
+                new_expr += coef * varmap[v]
+            end
+        end
+        return new_expr
+    end
+
+    orig_to_copied_uservar = Dict{VariableRef,VariableRef}()
+    for orig_uservar in all_variables(original)
+        ignored_uservar(optimizer_cols_info, orig_uservar) && continue
+        orig_to_copied_uservar[orig_uservar] = @variable(
+            copied_model,
+            base_name = name(orig_uservar),
+            lower_bound = has_lower_bound(orig_uservar) ? lower_bound(orig_uservar) : -Inf,
+            upper_bound = has_upper_bound(orig_uservar) ? upper_bound(orig_uservar) : Inf,
+            integer = is_integer(orig_uservar)
+        )
+    end
+
+    obj_expr = objective_function(original)
+    copied_obj = substitute_affexpr(obj_expr, orig_to_copied_uservar)
+    set_objective(copied_model, objective_sense(original), copied_obj)
+
+    for set_type in (MOI.LessThan{Float64}, MOI.GreaterThan{Float64}, MOI.EqualTo{Float64})
+        for c in all_constraints(original, AffExpr, set_type)
+            cref = constraint_object(c)
+            expr = cref.func
+            sense = cref.set
+            copied_expr = substitute_affexpr(expr, orig_to_copied_uservar)
+            @constraint(copied_model, copied_expr in sense)
+        end
+    end
+
+    return copied_model, orig_to_copied_uservar
 end
 
 function get_path_uservar_map(path::Vector{Int}, graph::VrpGraph)
@@ -2793,146 +2727,5 @@ function get_path_uservar_map(path::Vector{Int}, graph::VrpGraph)
     end
     return uservar_map
 end
-
-function get_path_coef_in_constr(
-    path::Vector{Int}, graph::VrpGraph, uservar_map::Dict{JuMP.VariableRef,Float64}, constr
-)
-    path_coef = 0.0
-    for (coef, user_var) in linearterms(constr.terms)
-        if haskey(uservar_map, user_var)
-            path_coef += coef * uservar_map[user_var]
-        end
-    end
-    return path_coef
-end
-
-function get_path_coef_in_obj(
-    path::Vector{Int}, graph::VrpGraph, uservar_map::Dict{JuMP.VariableRef,Float64}, obj_fct
-)
-    path_coef = 0.0
-    for (coef, user_var) in linearterms(obj_fct.aff)
-        if haskey(uservar_map, user_var)
-            path_coef += coef * uservar_map[user_var]
-        end
-    end
-    return path_coef
-end
-
-# function VrpBlockModel(;solver = JuMP.UnsetSolver())
-#     m = JuMP.Model(solver = solver)
-#     JuMP.setsolvehook(m, vrp_hook)
-
-#     m.ext[:complete_formulation] = false
-#     m.ext[:already_called] = false
-
-#     # Block decomposition data
-#     m.ext[:block_decomposition] = BlockDecomposition.BlockDecompositionData()
-#     # VariableRefs & constraints report
-#     m.ext[:varcstr_report] = BlockDecomposition.VarCstrReport()
-#     # Priorities & multiplicities
-#     m.ext[:sp_mult_fct] = nothing
-#     m.ext[:sp_prio_fct] = nothing
-
-#     # Storage (to list all subproblems)
-#     m.ext[:sp_list_dw] = Dict{Tuple, Integer}()
-#     m.ext[:sp_list_b] = Dict{Tuple, Integer}()
-#     m.ext[:sp_tab] = nothing
-
-#     # Data sent to the solver
-#     m.ext[:cstrs_decomposition_list] = nothing
-#     m.ext[:vars_decomposition_list] = nothing
-#     m.ext[:sp_mult_tab] = nothing
-#     m.ext[:sp_prio_tab] = nothing
-#     m.ext[:objective_data] = BlockDecomposition.ObjectiveData(NaN, -Inf, Inf)
-
-#     m.ext[:var_branch_prio_dict] = Dict{Tuple{Symbol, Tuple, Symbol}, Cdouble}() # (varname, sp, where) => (priority)
-#     m.ext[:branching_rules] = Dict{Symbol, Any}()
-#     m.ext[:branching_expression] = Dict{Symbol, Array{Tuple{Tuple, Array, Array, Float64},1}}()
-
-#     # Callbacks
-#     m.ext[:oracles] = Array{Tuple{Tuple, Symbol, Function},1}(undef, 0)
-
-#     m.ext[:generic_vars] = Dict{Symbol, Tuple{JuMP.VariableRef, Function}}()
-#     m.ext[:generic_cstrs] = Dict{Int, Tuple{JuMP.JuMP.ConstraintRef, String, Function}}()
-#     m.ext[:cstrs_preproc] = Dict{Tuple{Symbol, Tuple}, Bool}() # (cstrname, sp) => bool
-
-#     m.ext[:facultative_cuts_cb] = nothing
-#     m.ext[:core_cuts_cb] = nothing
-
-#     # Columns counter for generic variables & constraints
-#     m.ext[:colscounter] = 0
-#     m.ext[:rowscounter] = 0
-#     m
-# end
-
-# function vrp_hook(model;
-#      suppress_warnings=false,
-#      relaxation=false,
-#      kwargs...)
-
-#     if model.ext[:already_called]
-#         error("ERROR.")
-#     end
-
-#     model.ext[:already_called] = true
-#     # Step 1 : Create variables & constraints report
-#     BlockDecomposition.report_cstrs_and_vars!(model)
-#     BlockDecomposition.create_cstrs_vars_decomposition_list!(model)
-#     BlockDecomposition.create_sp_tab!(model)
-#     BlockDecomposition.create_sp_mult_tab!(model)
-#     BlockDecomposition.create_sp_prio_tab!(model)
-
-#     # Step 2 : Send decomposition (& others) data to the solver
-#     # Cstrs decomposition : mandatory
-#     BlockDecomposition.send_to_solver!(model, BlockDecomposition.set_constrs_decomposition!, :cstrs_decomposition_list, false)
-#     # Vars decomposition : mandatory
-#     BlockDecomposition.send_to_solver!(model, BlockDecomposition.set_vars_decomposition!, :vars_decomposition_list, false)
-#     # Subproblems
-#     BlockDecomposition.send_to_solver!(model, BlockDecomposition.set_sp_ids!, :sp_tab, true)
-#     # Subproblems multiplicities
-#     BlockDecomposition.send_to_solver!(model, BlockDecomposition.set_sp_mult!, :sp_mult_tab, false)
-#     # Subproblems priorities
-#     BlockDecomposition.send_to_solver!(model, BlockDecomposition.set_sp_prio!, :sp_prio_tab, false)
-#     # VariableRefs branching priority
-#     BlockDecomposition.send_to_solver!(model, BlockDecomposition.set_var_branching_prio!, :var_branch_prio_dict, false)
-#     # Oracles
-#     BlockDecomposition.send_to_solver!(model, BlockDecomposition.set_oracles!, :oracles, false)
-#     # Branching rules
-#     BlockDecomposition.send_to_solver!(model, BlockDecomposition.set_branching_rules!, :branching_rules, false)
-#     BlockDecomposition.send_to_solver!(model, BlockDecomposition.set_branching_exp!, :branching_expression, false)
-#     # Core & facultative cuts callbacks
-#     BlockDecomposition.send_to_solver!(model, BlockDecomposition.set_corecuts_cb!, :core_cuts_cb, false)
-#     BlockDecomposition.send_to_solver!(model, BlockDecomposition.set_facultativecuts_cb!, :facultative_cuts_cb, false)
-
-#     if applicable(BlockDecomposition.send_extras!, model) # works with BlockDecompositionExtras
-#         BlockDecomposition.send_extras!(model)
-#     end
-
-#     # Objective bounds and magnitude
-#     obj = model.ext[:objective_data]
-#     if applicable(BlockDecomposition.set_objective_bounds_and_magnitude!, model.solver, obj.magnitude, obj.lb, obj.ub)
-#         BlockDecomposition.set_objective_bounds_and_magnitude!(model.solver, obj.magnitude, obj.lb, obj.ub)
-#     end
-
-#     model.ext[:colscounter] = model.numCols
-#     model.ext[:rowscounter] = length(model.ext[:cstrs_decomposition_list])
-
-#     #if applicable(defineannotations, model, model.ext[:vars_decomposition_list])
-#     #  defineannotations(model, model.ext[:vars_decomposition_list])
-#     #end
-
-#     # Step 3 : Build + solve
-#     if model.ext[:complete_formulation]
-#       println("\e[42m complete formulation \e[00m")
-#       JuMP.build(model)
-#       return :Unsolved
-#     else
-#       println("\e[41m solve \e[00m")
-#       a = JuMP.solve(model, suppress_warnings=suppress_warnings,
-#             ignore_solve_hook=true,
-#             relaxation=relaxation)
-#       return a
-#     end
-# end
 
 end
