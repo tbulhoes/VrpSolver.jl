@@ -6,3 +6,5 @@
 6. Discutir o arrendondamento do UB na funcao optimize!
 7. Revisitar a funcao register_solutions para considerar o uso da funcao get_path_uservar_map
 8. RCSPmaxNumOfLabelsInHeurEnumeration
+9. Testar se a definicao da prioridade de branching funciona no caso em nao tem indice na variavel
+10. Explicar na documentacao o que é uma ignored variable
