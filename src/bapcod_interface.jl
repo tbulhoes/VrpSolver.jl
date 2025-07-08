@@ -929,46 +929,45 @@ function getstatistictime(c_model::Ptr{Cvoid}, key::Symbol)
     @bcs_ccall("getStatisticTime", Clong, (Ptr{Cvoid}, Ptr{Cchar}), c_model, "$key")
 end
 
+# Statistics available
+# Values
+bcvalues = [
+    :bcRecBestDb, :bcRecBestInc, :bcRec1stLPDb, :bcRecRootLpVal, :bcRecRootDb, :bcRecRootInc
+]
+# Timers
+bctimers = [
+    :bcTimeMain,
+    :bcTimeBaP,
+    :bcTimeMIPSol,
+    :bcTimeRootEval,
+    :bcTime1stLP,
+    :bcTimeColGen,
+    :bcTimeMastMPsol,
+    :bcTimeCgSpOracle,
+    :bcTimeSpUpdateProb,
+    :bcTimeSpMPsol,
+    :bcTimeSetMast,
+    :bcTimeSepFracSol,
+    :bcTimeCutSeparation,
+    :bcTimeAddCutToMaster,
+    :bcTimeRedCostFixAndEnum,
+    :bcTimeEnumMPsol,
+    :bcTimeSBphase1,
+    :bcTimeSBphase2,
+    :bcTimePrimalHeur,
+]
+# Counters
+bccounters = [
+    :bcCountCg,
+    :bcCountCol,
+    :bcCountNodeProc,
+    :bcCountCutInMaster,
+    :bcCountMastSol,
+    :bcCountSpSol,
+    :bcCountMastIpSol,
+]
+
 function getstatistic(c_model::Ptr{Cvoid}, key::Symbol)
-    # Statistics available
-    # Values
-    bcvalues = [:bcRecBestDb, :bcRecBestInc, :bcRecRootDb, :bcRecRootInc]
-    # Timers
-    bctimers = [
-        :bcTimeBaP,
-        :bcTimeCgSpOracle,
-        :bcTimeColGen,
-        :bcTimeMain,
-        :bcTimeMastMPsol,
-        :bcTimeMastPrepareProbConfig,
-        :bcTimeRedCostFixAndEnum,
-        :bcTimeRoot,
-        :bcTimeRootEval,
-        :bcTimeSetMast,
-        :bcTimeSpMPsol,
-        :bcTimeSpSol,
-        :bcTimeSpUpdateProb,
-        :bcTimeCutSeparation,
-        :bcTimeAddCutToMaster,
-        :bcTimeEnumMPsol,
-        :bcTimeSBphase1,
-        :bcTimeSBphase2,
-        :bcTimePrimalHeur,
-    ]
-    # Counters
-    bccounters = [
-        :bcCountCg,
-        :bcCountCgSpSolverCall,
-        :bcCountCgT1,
-        :bcCountCol,
-        :bcCountMastSol,
-        :bcCountNodeGen,
-        :bcCountNodeProc,
-        :bcCountNodeTreat,
-        :bcCountPrimalSolSize,
-        :bcCountSpSol,
-        :bcCountCutInMaster,
-    ]
     (!isempty(filter(x -> x != 0, bcvalues .== key))) &&
         return getstatisticvalue(c_model, key)
     (!isempty(filter(x -> x != 0, bccounters .== key))) &&
