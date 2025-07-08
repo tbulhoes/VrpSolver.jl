@@ -148,10 +148,6 @@ struct OptimizerColsInfo
     cols_types::Vector{Char}
 end
 
-function ignored_uservar(info::OptimizerColsInfo, user_var::JuMP.VariableRef)
-    !haskey(info.uservar_to_colids, user_var)
-end
-
 struct SpSol
     graph_id::Int
     multiplicity::Int
@@ -169,8 +165,6 @@ mutable struct VrpOptimizer
     unmapped_vars_in_sol::Dict{JuMP.VariableRef,Float64}
     integer_objective::Bool
     initUB::Float64
-    mapped_container_names::Vector{String}
-    ignored_container_names::Vector{String}
     stats::Dict{} # execution statistics
     baptreedot_file::String
     optimizer_cols_info::OptimizerColsInfo
@@ -424,10 +418,9 @@ function set_resource_bounds_aux!(
     graph::VrpGraph, vertex::Int, res_id::Int, lb::Float64, ub::Float64
 )
     if !graph.cycle_problem && vertex == graph.source_id && (lb != 0.0 || ub != 0.0)
-        println(
+        @warn(
             "VRPSolver warning: Interval set for resource $(res_id) on source node (when source != sink) is ignored (by definition is [0.0,0.0])",
         )
-        flush(stdout)
     end
     if graph.resources[res_id].is_binary
         if (lb, ub) != (0, 0) && (lb, ub) != (0, 1) && (lb, ub) != (1, 1)
@@ -1635,44 +1628,9 @@ function add_strongkpath_cut_separators_to_optimizer(optimizer::VrpOptimizer)
     end
 end
 
-function get_mapped_containers_names(user_model::VrpModel)
-    user_form = user_model.formulation
-    user_var_to_graphs = extract_user_var_to_graphs(user_model)
-    user_vars = all_variables(user_form)
-
-    names = String[]
-    for user_var in user_vars
-        (var_container_name, var_id) = split_var_name(user_var)
-        if haskey(user_var_to_graphs, user_var)
-            if !(var_container_name in names)
-                push!(names, var_container_name)
-            end
-        end
-    end
-    return names
-end
-
-function get_ignored_containers_names(user_model::VrpModel, mapped_names)
-    user_form = user_model.formulation
-    user_var_to_graphs = extract_user_var_to_graphs(user_model)
-    user_vars = all_variables(user_form)
-
-    names = String[]
-    for user_var in user_vars
-        (var_container_name, var_id) = split_var_name(user_var)
-        if !haskey(user_var_to_graphs, user_var) #unmapped var
-            if (var_container_name in mapped_names) && !(var_container_name in names)
-                push!(names, var_container_name)
-            end
-        end
-    end
-    return names
-end
-
 function extract_optimizer_cols_info(user_model::VrpModel)
     user_var_to_graphs = extract_user_var_to_graphs(user_model)
     user_form = user_model.formulation
-    mapped_names = get_mapped_containers_names(user_model)
     uservar_to_colids = Dict{JuMP.VariableRef,Vector{Int}}()
     uservar_to_problem_type = Dict{JuMP.VariableRef,Symbol}()
     cols_uservar = JuMP.VariableRef[]
@@ -1686,28 +1644,25 @@ function extract_optimizer_cols_info(user_model::VrpModel)
     nextcolid = 0
     user_vars = all_variables(user_form)
     for user_var in user_vars
-        (var_container_name, _) = split_var_name(user_var)
         colsids = Int[]
-        if !haskey(user_var_to_graphs, user_var)
-            if !(var_container_name in mapped_names) #master variable
-                push!(colsids, nextcolid)
-                push!(cols_problems, (:DW_MASTER, 0))
-                push!(cols_lbs, has_lower_bound(user_var) ? lower_bound(user_var) : -Inf)
-                push!(cols_ubs, has_upper_bound(user_var) ? upper_bound(user_var) : Inf)
-                push!(cols_names, name(user_var))
-                push!(cols_uservar, user_var)
-                push!(cols_costs, get(obj.terms, user_var, 0.0))
-                push!(
-                    cols_types,
-                    if is_integer(user_var)
-                        'I'
-                    else
-                        'C'
-                    end,
-                )
-                uservar_to_problem_type[user_var] = :DW_MASTER
-                nextcolid += 1
-            end
+        if !haskey(user_var_to_graphs, user_var) #master variable
+            push!(colsids, nextcolid)
+            push!(cols_problems, (:DW_MASTER, 0))
+            push!(cols_lbs, has_lower_bound(user_var) ? lower_bound(user_var) : -Inf)
+            push!(cols_ubs, has_upper_bound(user_var) ? upper_bound(user_var) : Inf)
+            push!(cols_names, name(user_var))
+            push!(cols_uservar, user_var)
+            push!(cols_costs, get(obj.terms, user_var, 0.0))
+            push!(
+                cols_types,
+                if is_integer(user_var)
+                    'I'
+                else
+                    'C'
+                end,
+            )
+            uservar_to_problem_type[user_var] = :DW_MASTER
+            nextcolid += 1
         else
             for graph_id in user_var_to_graphs[user_var] #subproblem variable
                 push!(colsids, nextcolid)
@@ -1716,13 +1671,13 @@ function extract_optimizer_cols_info(user_model::VrpModel)
                 push!(cols_lbs, 0.0)
                 push!(cols_ubs, Inf)
                 if has_lower_bound(user_var) && lower_bound(user_var) != 0.0
-                    @error(
-                        "VRPSolver error: lower bound of mapped variables must be zero. Add explicit master constraints to impose a different lower bound"
+                    error(
+                        "VRPSolver error: lower bound of mapped variables must be zero. Add explicit master constraints to impose a different lower bound",
                     )
                 end
                 if has_upper_bound(user_var)
-                    @error(
-                        "VRPSolver error: upper bound of mapped variables must be infinity. Add explicit master constraints to impose a different upper bound"
+                    error(
+                        "VRPSolver error: upper bound of mapped variables must be infinity. Add explicit master constraints to impose a different upper bound",
                     )
                 end
                 push!(cols_uservar, user_var)
@@ -1823,11 +1778,9 @@ function build_optimizer_vars_and_constrs(
     for (constr_idx, constr_ref) in enumerate(constrs_refs)
         terms = JuMP.constraint_object(constr_ref).func.terms
         for (user_var, coeff) in terms
-            if !ignored_uservar(optimizer_cols_info, user_var)
-                for id in optimizer_cols_info.uservar_to_colids[user_var]
-                    push!(rows_id_vec[id + 1], constr_idx - 1)
-                    push!(nonzeros_vec[id + 1], coeff)
-                end
+            for id in optimizer_cols_info.uservar_to_colids[user_var]
+                push!(rows_id_vec[id + 1], constr_idx - 1)
+                push!(nonzeros_vec[id + 1], coeff)
             end
         end
     end
@@ -1848,9 +1801,6 @@ function has_integer_objective(user_model::VrpModel, optimizer_cols_info::Optimi
     user_vars = all_variables(user_form)
     obj = objective_function(user_form)
     for user_var in user_vars
-        if ignored_uservar(optimizer_cols_info, user_var)
-            continue
-        end
         # checking if the coefficient in the objective function is integral
         var_cost = get(obj.terms, user_var, 0.0)
         if modf(var_cost)[1] != 0.0
@@ -1886,7 +1836,6 @@ function set_branching_priorities_in_optimizer(
     cols_priority_infos = Tuple{Symbol,Symbol,Int,Float64}[]
     for (var_container_name, priority) in user_model.branching_priorities
         for user_var in user_vars
-            !haskey(optimizer_cols_info.uservar_to_colids, user_var) && continue # ignored variable
             length(optimizer_cols_info.uservar_to_colids[user_var]) > 1 && continue # we will branch on an expression aggregating the mapped variables
             (container_name, _) = split_var_name(user_var)
             if var_container_name == container_name
@@ -1943,19 +1892,14 @@ function set_branching_priorities_in_optimizer(
         for index in keys(exp_family)
             expr = exp_family[index]
             if expr.constant != 0.0
-                @error(
-                    "VRPSolver error: constant part of branching expression must be equal to zero"
+                error(
+                    "VRPSolver error: constant part of branching expression must be equal to zero",
                 )
             end
             colsids, coeffs = Int[], Float64[]
             for user_var_idx in 1:length(expr.terms.keys)
                 user_var = expr.terms.keys[user_var_idx]
                 coeff = expr.terms.vals[user_var_idx]
-                if !haskey(optimizer_cols_info.uservar_to_colids, user_var)
-                    @error(
-                        "VRPSolver error: using ignored variable $(user_var) in a branching expression is not allowed"
-                    )
-                end
                 for colid in optimizer_cols_info.uservar_to_colids[user_var]
                     push!(colsids, colid)
                     push!(coeffs, coeff)
@@ -1974,19 +1918,14 @@ function set_branching_priorities_in_optimizer(
     # finally, we add the single expressions defined the user
     for (expr, name, priority) in user_model.branching_exps
         if expr.constant != 0.0
-            @error(
-                "VRPSolver error: constant part of branching expression must be equal to zero"
+            error(
+                "VRPSolver error: constant part of branching expression must be equal to zero",
             )
         end
         colsids, coeffs = Int[], Float64[]
         for user_var_idx in 1:length(expr.terms.keys)
             user_var = expr.terms.keys[user_var_idx]
             coeff = expr.terms.vals[user_var_idx]
-            if !haskey(optimizer_cols_info.uservar_to_colids, user_var)
-                @error(
-                    "VRPSolver error: using ignored variable $(user_var) in a branching expression is not allowed"
-                )
-            end
             for colid in optimizer_cols_info.uservar_to_colids[user_var]
                 push!(colsids, colid)
                 push!(coeffs, coeff)
@@ -2069,15 +2008,6 @@ function VrpOptimizer(
         c_add_packset_ryan_and_foster_branching(bapcod_model_ptr, priority)
     end
 
-    mapped_names = get_mapped_containers_names(user_model)
-    ignored_names = get_ignored_containers_names(user_model, mapped_names)
-    for name in ignored_names
-        println(
-            "VRPSolver warning: unmapped $name vars were ignored because there are mapped $name vars",
-        )
-        flush(stdout)
-    end
-
     optimizer = VrpOptimizer(
         user_model,
         bapcod_model_ptr,
@@ -2088,8 +2018,6 @@ function VrpOptimizer(
         Dict{JuMP.VariableRef,Float64}(),
         integer_objective,
         -1,
-        mapped_names,
-        ignored_names,
         Dict(),
         baptreedot,
         optimizer_cols_info,
@@ -2401,7 +2329,7 @@ Returns a tuple where the first element is the `VrpGraph` and the second element
 """
 function get_path_arcs(optimizer::VrpOptimizer, path_id::Int)
     if !(1 <= path_id <= length(optimizer.spsols_in_sol))
-        @error "VrpSolver error: invalid path id"
+        error("VrpSolver error: invalid path id")
     end
 
     spsol = optimizer.spsols_in_sol[path_id]
@@ -2677,16 +2605,13 @@ function copy_jump_model(original::JuMP.Model, optimizer_cols_info::OptimizerCol
     function substitute_affexpr(expr::JuMP.AffExpr, varmap)
         new_expr = JuMP.AffExpr(constant(expr))
         for (coef, v) in linear_terms(expr)
-            if haskey(varmap, v) # to skip ignored vars
-                new_expr += coef * varmap[v]
-            end
+            new_expr += coef * varmap[v]
         end
         return new_expr
     end
 
     orig_to_copied_uservar = Dict{VariableRef,VariableRef}()
     for orig_uservar in all_variables(original)
-        ignored_uservar(optimizer_cols_info, orig_uservar) && continue
         orig_to_copied_uservar[orig_uservar] = @variable(
             copied_model,
             base_name = name(orig_uservar),
