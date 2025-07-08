@@ -1,10 +1,6 @@
-1. Throw an error if a model with no graph is defined
-2. Retrieve all stats described in the bapcod documentation
-3. Reduce the constant from 0.5 to a very small value in the rouding performed by function optimize!
-4. Forbid negative coefs in the mapping
-5. Investigate why the enumeration needs the parameter RCSPmaxNumOfLabelsInHeurEnumeration when trying 
+1. Reduce the constant from 0.5 to a very small value in the rouding performed by function optimize!
+2. Investigate why the enumeration needs the parameter RCSPmaxNumOfLabelsInHeurEnumeration when trying 
    to enumerate all paths for building the complete formulation
-6. Investigate the use of unbounded unmapped vars
-7. The rank-1 cuts are enabled by default. Check if this is a problem when no packing sets are defined
-8. Use function get_path_uservar_map in function register_solutions
-9. Test the definition of the branching priority in the case of variable with no index
+3. Investigate the use of unbounded unmapped vars
+4. Use function get_path_uservar_map in function register_solutions
+5. Perform tests to check the stats retrieved by bapcod. bcRec1stLPDb seems to be wrong
