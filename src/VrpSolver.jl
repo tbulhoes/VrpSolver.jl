@@ -1715,6 +1715,16 @@ function extract_optimizer_cols_info(user_model::VrpModel)
                 push!(cols_names, name(user_var) * "_$(graph_id-1)")
                 push!(cols_lbs, 0.0)
                 push!(cols_ubs, Inf)
+                if has_lower_bound(user_var) && lower_bound(user_var) != 0.0
+                    @error(
+                        "VRPSolver error: lower bound of mapped variables must be zero. Add explicit master constraints to impose a different lower bound"
+                    )
+                end
+                if has_upper_bound(user_var)
+                    @error(
+                        "VRPSolver error: upper bound of mapped variables must be infinity. Add explicit master constraints to impose a different upper bound"
+                    )
+                end
                 push!(cols_uservar, user_var)
                 push!(cols_costs, get(obj.terms, user_var, 0.0))
                 push!(
