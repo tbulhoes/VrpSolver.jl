@@ -163,6 +163,7 @@ mutable struct VrpOptimizer
     callbacks::Dict{String,CallbackInfo}
     spsols_in_sol::Vector{SpSol}
     unmapped_vars_in_sol::Dict{JuMP.VariableRef,Float64}
+    sol_defined::Bool
     integer_objective::Bool
     initUB::Float64
     stats::Dict{} # execution statistics
@@ -2017,6 +2018,7 @@ function VrpOptimizer(
         Dict{String,CallbackInfo}(),
         Tuple{Int,Dict{JuMP.VariableRef,Float64}}[],
         Dict{JuMP.VariableRef,Float64}(),
+        false,
         integer_objective,
         -1,
         Dict(),
@@ -2026,8 +2028,6 @@ function VrpOptimizer(
     user_model.optimizer = optimizer
 
     # CHECK
-    # add_callbacks_to_optimizer(optimizer)
-    # add_capacity_cut_separators_to_optimizer(optimizer)
     # add_strongkpath_cut_separators_to_optimizer(optimizer)
 
     return optimizer
@@ -2052,7 +2052,6 @@ function JuMP.optimize!(optimizer::VrpOptimizer)
     # having to pass it as an argument.
     optimizer.user_model.formulation.ext[:optimizer] = optimizer
 
-    sol_ptr = new_sol!()
     if !isempty(optimizer.user_model.callbacks)
         register_lazycb!(optimizer.bapcod_model, optimizer)
         for constr_name in keys(optimizer.user_model.callbacks)
@@ -2062,10 +2061,7 @@ function JuMP.optimize!(optimizer::VrpOptimizer)
         end
     end
 
-    # emptying the solution stored in the optimizer
-    empty!(optimizer.unmapped_vars_in_sol)
-    empty!(optimizer.spsols_in_sol)
-
+    sol_ptr = new_sol!()
     status = c_optimize(optimizer.bapcod_model, sol_ptr)
     has_solution = register_solutions(optimizer, sol_ptr)
 
@@ -2114,53 +2110,17 @@ function register_solutions(optimizer::VrpOptimizer, bapcodsol)
     optimizer_cols_info = optimizer.optimizer_cols_info
     unmapped_vars_in_sol = Dict{JuMP.VariableRef,Float64}()
 
-    # computing sp sols
+    # emptying the solution stored in the optimizer
+    empty!(optimizer.unmapped_vars_in_sol)
+    empty!(optimizer.spsols_in_sol)
+
+    # getting master solution
     if c_start(bapcodsol, bapcod_model) != 1
-        return false
-    end
-    status = c_next(bapcodsol) # ignore master solution
-    while status == 1
-        subproblem_id = Int(c_getProblemFirstId(bapcodsol))
-        mult = c_getMultiplicity(bapcodsol)
-        graph = optimizer.user_model.graphs[subproblem_id + 1]
-        spsol = SpSol(graph.id, mult, Dict{JuMP.VariableRef,Float64}(), VrpArc[])
-
-        # computing the values of user vars in the subproblem sol
-        for user_var in user_vars
-            if optimizer_cols_info.uservar_to_problem_type[user_var] == :DW_MASTER
-                continue
-            end
-            user_var_val = 0.0
-            for colid in optimizer_cols_info.uservar_to_colids[user_var]
-                if optimizer_cols_info.cols_problems[colid + 1][2] == subproblem_id
-                    user_var_val += c_getValueOfVar(bapcod_model, bapcodsol, colid)
-                end
-            end
-            if user_var_val > 0
-                spsol.user_vars_in_sol[user_var] = user_var_val
-            end
-        end
-
-        # retrieving the sequence of arcs
-        arcs_bapcod_ids = c_getArcs(bapcodsol)
-        for arc_bap_id in arcs_bapcod_ids
-            arc_id = graph.arc_bapcod_id_to_id[arc_bap_id]
-            push!(spsol.arc_seq, graph.arcs[arc_id])
-        end
-
-        push!(spsols_in_sol, spsol)
-        status = c_next(bapcodsol)
-    end
-
-    optimizer.spsols_in_sol = spsols_in_sol
-    # CHECK: do we need this?
-    if length(spsols_in_sol) == 0
-        optimizer.unmapped_vars_in_sol = unmapped_vars_in_sol
+        optimizer.sol_defined = false
         return false
     end
 
     # getting unmapped vars values
-    c_start(bapcodsol, bapcod_model)
     for user_var in user_vars
         if optimizer_cols_info.uservar_to_problem_type[user_var] == :DW_MASTER
             colid = optimizer_cols_info.uservar_to_colids[user_var][1]
@@ -2168,6 +2128,28 @@ function register_solutions(optimizer::VrpOptimizer, bapcodsol)
         end
     end
     optimizer.unmapped_vars_in_sol = unmapped_vars_in_sol
+
+    # retrieving subproblem sols
+    status = c_next(bapcodsol) # skip master solution
+    while status == 1
+        subproblem_id = Int(c_getProblemFirstId(bapcodsol))
+        mult = c_getMultiplicity(bapcodsol)
+        graph = optimizer.user_model.graphs[subproblem_id + 1]
+        arcs_ids = [
+            graph.arc_bapcod_id_to_id[arc_bap_id] for arc_bap_id in c_getArcs(bapcodsol)
+        ]
+        spsol = SpSol(
+            graph.id,
+            mult,
+            get_path_uservar_map(arcs_ids, graph),
+            [graph.arcs[arc_id] for arc_id in arcs_ids],
+        )
+        push!(spsols_in_sol, spsol)
+        status = c_next(bapcodsol)
+    end
+    optimizer.spsols_in_sol = spsols_in_sol
+
+    optimizer.sol_defined = true
 
     return true
 end
@@ -2197,6 +2179,7 @@ Get the objective function value after optimization.
 
 """
 function get_objective_value(optimizer::VrpOptimizer)
+    !optimizer.sol_defined && error("VRPSolver error: solution is undefined")
     user_form = optimizer.user_model.formulation
     user_vars = all_variables(user_form)
     obj_value = 0.0
@@ -2221,6 +2204,7 @@ Get the value for a decision variable after optimization.
 
 """
 function get_value(optimizer::VrpOptimizer, user_var::JuMP.VariableRef)
+    !optimizer.sol_defined && error("VRPSolver error: solution is undefined")
     optimizer_cols_info = optimizer.optimizer_cols_info
     if optimizer_cols_info.uservar_to_problem_type[user_var] == :DW_MASTER
         return get(optimizer.unmapped_vars_in_sol, user_var, 0.0)
@@ -2255,6 +2239,9 @@ Get the value for a decision variable due to a specific path.
 `path_id` shoul be a value between 1 and the number of positive paths.
 """
 function get_value(optimizer::VrpOptimizer, user_var::JuMP.VariableRef, path_id::Int)
+    !optimizer.sol_defined && error("VRPSolver error: solution is undefined")
+    !(1 <= path_id <= length(optimizer.spsols_in_sol)) &&
+        error("VrpSolver error: invalid path id")
     return get(optimizer.spsols_in_sol[path_id].user_vars_in_sol, user_var, 0.0)
 end
 
@@ -2265,10 +2252,10 @@ Get the value for a path variable (λ variable created internally due to the map
 
 """
 function get_value(optimizer::VrpOptimizer, path_id::Int)
-    if 1 <= path_id <= length(optimizer.spsols_in_sol)
-        return optimizer.spsols_in_sol[path_id][1]
-    end
-    return 0.0
+    !optimizer.sol_defined && error("VRPSolver error: solution is undefined")
+    !(1 <= path_id <= length(optimizer.spsols_in_sol)) &&
+        error("VrpSolver error: invalid path id")
+    return optimizer.spsols_in_sol[path_id][1]
 end
 
 """
@@ -2292,6 +2279,7 @@ of retrieving the value of the lambda variables and for identifying the path.
 
 """
 function get_number_of_positive_paths(optimizer::VrpOptimizer)
+    !optimizer.sol_defined && error("VRPSolver error: solution is undefined")
     return length(optimizer.spsols_in_sol)
 end
 
@@ -2302,9 +2290,9 @@ Returns a tuple where the first element is the `VrpGraph` and the second element
 
 """
 function get_path_arcs(optimizer::VrpOptimizer, path_id::Int)
-    if !(1 <= path_id <= length(optimizer.spsols_in_sol))
+    !optimizer.sol_defined && error("VRPSolver error: solution is undefined")
+    !(1 <= path_id <= length(optimizer.spsols_in_sol)) &&
         error("VrpSolver error: invalid path id")
-    end
 
     spsol = optimizer.spsols_in_sol[path_id]
     graph = optimizer.user_model.graphs[spsol.graph_id]
