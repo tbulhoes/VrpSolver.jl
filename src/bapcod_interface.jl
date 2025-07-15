@@ -1,11 +1,9 @@
-bapcod_path = get(ENV, "BAPCOD_RCSP_LIB", "")
-
 ## ccall redef
 macro bcm_ccall(func, args...)
     f = "bcInterfaceModel_$(func)"
     args = map(esc, args)
     return quote
-        ccall(($f, $bapcod_path), $(args...))
+        ccall(($f, get(ENV, "BAPCOD_RCSP_LIB", "")), $(args...))
     end
 end
 
@@ -13,7 +11,7 @@ macro bcr_ccall(func, args...)
     f = "bcRCSP_$(func)"
     args = map(esc, args)
     return quote
-        ccall(($f, $bapcod_path), $(args...))
+        ccall(($f, get(ENV, "BAPCOD_RCSP_LIB", "")), $(args...))
     end
 end
 
@@ -21,7 +19,7 @@ macro bcs_ccall(func, args...)
     f = "bcInterfaceSolve_$(func)"
     args = map(esc, args)
     return quote
-        ccall(($f, $bapcod_path), $(args...))
+        ccall(($f, get(ENV, "BAPCOD_RCSP_LIB", "")), $(args...))
     end
 end
 
@@ -29,7 +27,7 @@ macro bcsol_ccall(func, args...)
     f = "bcSolution_$(func)"
     args = map(esc, args)
     return quote
-        ccall(($f, $bapcod_path), $(args...))
+        ccall(($f, get(ENV, "BAPCOD_RCSP_LIB", "")), $(args...))
     end
 end
 
