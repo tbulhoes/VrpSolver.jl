@@ -96,6 +96,7 @@ mutable struct VrpGraph
     net
     es_dist_matrix
     elem_sets::Array{Array{Int,1},1}
+    standalone_filename::String
 end
 
 mutable struct CapacityCutInfo
@@ -121,7 +122,6 @@ mutable struct VrpModel
     strongkpath_cuts_info::Array{CapacityCutInfo,1}
     arcs_by_packing_set_pairs::Array{Array{Tuple{VrpGraph,VrpArc}},2}
     ryanfoster_constraints::Vector{Tuple{Integer,Integer,Bool}} # (firstPackSetId,secondPackSetId,together)
-    save_standalone::String
 end
 
 mutable struct DynamicConstrInfo
@@ -203,7 +203,7 @@ Create an empty VRPSolver model.
 It is the main object of the VRPSolver. It is responsible to keep the RCSP graphs (of type VrpGraph), formulation, packing sets, rounded capacity cuts and other definitions (like branching).
 
 """
-function VrpModel(; save_standalone = "")
+function VrpModel()
     VrpModel(
         Model(),
         VrpGraph[],
@@ -221,7 +221,6 @@ function VrpModel(; save_standalone = "")
         CapacityCutInfo[],
         Array{Array{Tuple{VrpGraph,VrpArc},1},2}(undef, 0, 0),
         Vector{Tuple{Integer,Integer,Bool}}(),
-        save_standalone,
     )
 end
 
@@ -262,6 +261,7 @@ See also: [`add_arc!`](@ref), [`add_resource!`](@ref), [`set_resource_bounds!`](
 - `source::Int`: id of the source node
 - `sink::Int`: id of the sink node
 - `multiplicity::Tuple{Int,Int}`: multiplicity of the pricing subproblem, i.e., is given lower and upper bounds, respectively, on the number of paths from this graph in a solution.  
+- `standalone_filename::String`: path to a file where the graph will be exported to. 
 
 # Examples
 ```julia
@@ -277,6 +277,7 @@ function VrpGraph(
     source::Int,
     sink::Int,
     multiplicity::Tuple{Int,Int},
+    standalone_filename::String = "",
 )
     vertices = [
         VrpVertex(nodes[i], i, -1, -1, Dict{Float64,Float64}(), Int[]) for
@@ -325,6 +326,7 @@ function VrpGraph(
         nothing,
         nothing,
         Array{Array{Int,1},1}[],
+        standalone_filename,
     )
 end
 
@@ -520,7 +522,6 @@ function add_elem_set_to_arc_init_ng_neighbourhood!(
     end
 end
 
-#TODO: check for repeated variables before passing the model to bapcod
 """
     add_arc_var_mapping!(graph::VrpGraph, arc_id::Int, vars::Array{Tuple{JuMP.VariableRef, Float64},1})
 
@@ -1244,11 +1245,6 @@ function generate_pricing_networks(
         wbcr_set_source(c_net_ptr, graph.source_id - 1)
         wbcr_set_sink(c_net_ptr, graph.sink_id - 1)
 
-        # CHECK
-        # if user_model.save_standalone != ""
-        #    save_standalone!(network, user_model.save_standalone)
-        # end
-
         graph.net = c_net_ptr
         #resources and vertices
         for resource in graph.resources
@@ -1410,7 +1406,9 @@ function generate_pricing_networks(
         #    add_permanent_ryan_foster_constraint!(network, ps1, ps2, tog)
         # end
 
-        new_oracle!(c_net_ptr, bapcod_model, :DW_SP, graph.id - 1)
+        new_oracle!(
+            c_net_ptr, bapcod_model, :DW_SP, graph.id - 1, graph.standalone_filename
+        )
     end
 
     c_set_sp_multiplicities(

@@ -728,11 +728,20 @@ function wbcr_create_oracle(
     )
 end
 
-function new_oracle!(c_net::Ptr{Cvoid}, c_model::Ptr{Cvoid}, sp_type::Symbol, sp_id::Int)
+function new_oracle!(
+    c_net::Ptr{Cvoid},
+    c_model::Ptr{Cvoid},
+    sp_type::Symbol,
+    sp_id::Int,
+    standalone_filename::String = "",
+)
     sp_bcid = Array{Cint,1}(undef, 8)
     from_index_to_BaPCodindex(sp_id, sp_bcid)
     sp_bctype = sptype_to_int(sp_type)
-    wbcr_create_oracle(c_net, c_model, sp_bctype, sp_bcid, false, "")
+    save_standalone = standalone_filename != ""
+    wbcr_create_oracle(
+        c_net, c_model, sp_bctype, sp_bcid, save_standalone, standalone_filename
+    )
 end
 
 function getoptimalitygaptolerance(modelptr::Ptr{Cvoid})
