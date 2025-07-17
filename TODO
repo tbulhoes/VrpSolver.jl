@@ -2,5 +2,8 @@
 2. Investigate why the enumeration needs the parameter RCSPmaxNumOfLabelsInHeurEnumeration when trying 
    to enumerate all paths for building the complete formulation
 3. Investigate the use of unbounded unmapped vars
-4. Use function get_path_uservar_map in function register_solutions
-5. Perform tests to check the stats retrieved by bapcod. bcRec1stLPDb seems to be wrong
+4. Perform tests to check the stats retrieved by bapcod. bcRec1stLPDb seems to be wrong
+5. Throw an error or a warning when the enumeration should not be used: for instance, when no elem sets are defined or a callback is used
+6. Check if the following holds about the functions that define initial ng neighborhoods: "This is an explicit way to set initial ng-neighbourhoods, which has priority over the definition with [`define_elementarity_sets_distance_matrix!`].
+In fact, distance matrix is taken into account only if user-defined ng-sets are empty."
+7. Enable strong k-path cuts

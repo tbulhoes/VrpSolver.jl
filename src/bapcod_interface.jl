@@ -1,11 +1,9 @@
-bapcod_path = get(ENV, "BAPCOD_RCSP_LIB", "")
-
 ## ccall redef
 macro bcm_ccall(func, args...)
     f = "bcInterfaceModel_$(func)"
     args = map(esc, args)
     return quote
-        ccall(($f, $bapcod_path), $(args...))
+        ccall(($f, get(ENV, "BAPCOD_RCSP_LIB", "")), $(args...))
     end
 end
 
@@ -13,7 +11,7 @@ macro bcr_ccall(func, args...)
     f = "bcRCSP_$(func)"
     args = map(esc, args)
     return quote
-        ccall(($f, $bapcod_path), $(args...))
+        ccall(($f, get(ENV, "BAPCOD_RCSP_LIB", "")), $(args...))
     end
 end
 
@@ -21,7 +19,7 @@ macro bcs_ccall(func, args...)
     f = "bcInterfaceSolve_$(func)"
     args = map(esc, args)
     return quote
-        ccall(($f, $bapcod_path), $(args...))
+        ccall(($f, get(ENV, "BAPCOD_RCSP_LIB", "")), $(args...))
     end
 end
 
@@ -29,7 +27,7 @@ macro bcsol_ccall(func, args...)
     f = "bcSolution_$(func)"
     args = map(esc, args)
     return quote
-        ccall(($f, $bapcod_path), $(args...))
+        ccall(($f, get(ENV, "BAPCOD_RCSP_LIB", "")), $(args...))
     end
 end
 
@@ -730,11 +728,20 @@ function wbcr_create_oracle(
     )
 end
 
-function new_oracle!(c_net::Ptr{Cvoid}, c_model::Ptr{Cvoid}, sp_type::Symbol, sp_id::Int)
+function new_oracle!(
+    c_net::Ptr{Cvoid},
+    c_model::Ptr{Cvoid},
+    sp_type::Symbol,
+    sp_id::Int,
+    standalone_filename::String = "",
+)
     sp_bcid = Array{Cint,1}(undef, 8)
     from_index_to_BaPCodindex(sp_id, sp_bcid)
     sp_bctype = sptype_to_int(sp_type)
-    wbcr_create_oracle(c_net, c_model, sp_bctype, sp_bcid, false, "")
+    save_standalone = standalone_filename != ""
+    wbcr_create_oracle(
+        c_net, c_model, sp_bctype, sp_bcid, save_standalone, standalone_filename
+    )
 end
 
 function getoptimalitygaptolerance(modelptr::Ptr{Cvoid})
@@ -1022,5 +1029,19 @@ function add_branching_expression(
         [Cint(colid) for colid in cols_ids],
         [Cdouble(coeff) for coeff in cols_coeffs],
         Cdouble(length(cols_ids))
+    )
+end
+
+function wbcr_add_permanent_ryanfoster_constraint(
+    c_net::Ptr{Cvoid}, firstPackSetId::Int, secondPackSetId::Int, together::Bool
+)
+    @bcr_ccall(
+        "addPermanentRyanAndFosterConstraint",
+        Cint,
+        (Ptr{Cvoid}, Cint, Cint, UInt8),
+        c_net,
+        Cint(firstPackSetId),
+        Cint(secondPackSetId),
+        UInt8(together)
     )
 end
