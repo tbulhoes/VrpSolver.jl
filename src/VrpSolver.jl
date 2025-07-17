@@ -1162,6 +1162,11 @@ add_permanent_ryanfoster_constraint!(model, 3, 4, false)
 function add_permanent_ryanfoster_constraint!(
     model::VrpModel, firstPackSetId::Integer, secondPackSetId::Integer, together::Bool
 )
+    check_id(firstPackSetId, 1, length(model.packing_sets))
+    check_id(secondPackSetId, 1, length(model.packing_sets))
+    (firstPackSetId == secondPackSetId) && error(
+        "VRPSolver error: packing sets must be different in a permanent Ryan and Foster constraint",
+    )
     push!(model.ryanfoster_constraints, (firstPackSetId, secondPackSetId, together))
 end
 
@@ -1401,10 +1406,10 @@ function generate_pricing_networks(
             )
         end
 
-        # #ryan and foster constraints
-        # for (ps1, ps2, tog) in user_model.ryanfoster_constraints
-        #    add_permanent_ryan_foster_constraint!(network, ps1, ps2, tog)
-        # end
+        #ryan and foster constraints
+        for (ps1, ps2, tog) in user_model.ryanfoster_constraints
+            wbcr_add_permanent_ryanfoster_constraint(c_net_ptr, ps1 - 1, ps2 - 1, tog)
+        end
 
         new_oracle!(
             c_net_ptr, bapcod_model, :DW_SP, graph.id - 1, graph.standalone_filename

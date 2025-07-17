@@ -1031,3 +1031,17 @@ function add_branching_expression(
         Cdouble(length(cols_ids))
     )
 end
+
+function wbcr_add_permanent_ryanfoster_constraint(
+    c_net::Ptr{Cvoid}, firstPackSetId::Int, secondPackSetId::Int, together::Bool
+)
+    @bcr_ccall(
+        "addPermanentRyanAndFosterConstraint",
+        Cint,
+        (Ptr{Cvoid}, Cint, Cint, UInt8),
+        c_net,
+        Cint(firstPackSetId),
+        Cint(secondPackSetId),
+        UInt8(together)
+    )
+end
