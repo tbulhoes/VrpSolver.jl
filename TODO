@@ -1,9 +1,7 @@
-1. Reduce the constant from 0.5 to a very small value in the rouding performed by function optimize!
-2. Investigate why the enumeration needs the parameter RCSPmaxNumOfLabelsInHeurEnumeration when trying 
+1. Investigate why the enumeration needs the parameter RCSPmaxNumOfLabelsInHeurEnumeration when trying 
    to enumerate all paths for building the complete formulation
-3. Investigate the use of unbounded unmapped vars
-4. Perform tests to check the stats retrieved by bapcod. bcRec1stLPDb seems to be wrong
-5. Throw an error or a warning when the enumeration should not be used: for instance, when no elem sets are defined or a callback is used
-6. Check if the following holds about the functions that define initial ng neighborhoods: "This is an explicit way to set initial ng-neighbourhoods, which has priority over the definition with [`define_elementarity_sets_distance_matrix!`].
+2. Perform tests to check the stats retrieved by bapcod. bcRec1stLPDb seems to be wrong
+3. Throw an error or a warning when the enumeration should not be used: for instance, when no elem sets are defined or a callback is used
+4. Check if the following holds about the functions that define initial ng neighborhoods: "This is an explicit way to set initial ng-neighbourhoods, which has priority over the definition with [`define_elementarity_sets_distance_matrix!`].
 In fact, distance matrix is taken into account only if user-defined ng-sets are empty."
-7. Enable strong k-path cuts
+5. Enable strong k-path cuts
