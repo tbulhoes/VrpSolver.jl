@@ -1964,7 +1964,7 @@ function VrpOptimizer(
     user_model::VrpModel,
     param_file::String,
     instance_name = "";
-    baptreedot = "BaPTree.dot";
+    baptreedot = "BaPTree.dot",
     fixed_params = [
         "",
         "--MaxNbOfStagesInColGenProcedure",
