@@ -1987,7 +1987,7 @@ function VrpOptimizer(
         true,
         integer_objective,
         false, # CHECK
-        11,
+        length(fixed_params),
         fixed_params,
     )
 
@@ -2411,7 +2411,11 @@ function show(io::IO, graph::VrpGraph)
 end
 
 function get_enum_paths(user_model::VrpModel, paramfile::String)
-    optimizer = VrpOptimizer(user_model, paramfile)
+    optimizer = VrpOptimizer(
+        user_model,
+        paramfile;
+        fixed_params = ["", "--RCSPmaxNumOfLabelsInHeurEnumeration", "1000"],
+    )
     paths = []
     bcsol = get_enumerated_sp_sols(optimizer.bapcod_model)
     status = c_next(bcsol)
