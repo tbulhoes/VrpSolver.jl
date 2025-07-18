@@ -1961,7 +1961,23 @@ Build an optimizer for a VrpModel.
 - `baptreedot::String`: path to the file to output the BaP Tree in dot format.
 """
 function VrpOptimizer(
-    user_model::VrpModel, param_file::String, instance_name = ""; baptreedot = "BaPTree.dot"
+    user_model::VrpModel,
+    param_file::String,
+    instance_name = "";
+    baptreedot = "BaPTree.dot";
+    fixed_params = [
+        "",
+        "--MaxNbOfStagesInColGenProcedure",
+        "3",
+        "--colGenSubProbSolMode",
+        "3",
+        "--MipSolverMultiThread",
+        "1",
+        "--ApplyStrongBranchingEvaluation",
+        "true",
+        "-t",
+        baptreedot,
+    ],
 )
     optimizer_cols_info = extract_optimizer_cols_info(user_model)
     integer_objective = has_integer_objective(user_model, optimizer_cols_info)
@@ -1972,19 +1988,7 @@ function VrpOptimizer(
         integer_objective,
         false, # CHECK
         11,
-        [
-            "",
-            "--MaxNbOfStagesInColGenProcedure",
-            "3",
-            "--colGenSubProbSolMode",
-            "3",
-            "--MipSolverMultiThread",
-            "1",
-            "--ApplyStrongBranchingEvaluation",
-            "true",
-            "-t",
-            baptreedot,
-        ],
+        fixed_params,
     )
 
     #creating optimizer formulation
