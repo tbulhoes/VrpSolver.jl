@@ -1633,6 +1633,23 @@ function add_strongkpath_cut_separators_to_optimizer(optimizer::VrpOptimizer)
     end
 end
 
+function get_obj_terms(jump_model::Model)
+    obj = objective_function(jump_model)
+    obj_terms = if isa(obj, JuMP.GenericAffExpr)
+        !iszero(obj.constant) && error(
+            "VRPSolver error: constant part of the objective function must be zero"
+        )
+        obj.terms
+    elseif isa(obj, JuMP.VariableRef)
+        Dict(obj => 1.0)
+    else
+        error(
+            "VRPSolver error: supported types for the objective function are: GenericAffExpr and VariableRef",
+        )
+    end
+    obj_terms
+end
+
 function extract_optimizer_cols_info(user_model::VrpModel)
     user_var_to_graphs = extract_user_var_to_graphs(user_model)
     user_form = user_model.formulation
@@ -1645,7 +1662,7 @@ function extract_optimizer_cols_info(user_model::VrpModel)
     cols_ubs = Float64[]
     cols_costs = Float64[]
     cols_types = Char[]
-    obj = objective_function(user_form)
+    obj_terms = get_obj_terms(user_form)
     nextcolid = 0
     user_vars = all_variables(user_form)
     for user_var in user_vars
@@ -1653,11 +1670,16 @@ function extract_optimizer_cols_info(user_model::VrpModel)
         if !haskey(user_var_to_graphs, user_var) # unmapped variable
             push!(colsids, nextcolid)
             push!(cols_problems, (:DW_MASTER, 0))
-            push!(cols_lbs, has_lower_bound(user_var) ? lower_bound(user_var) : -Inf)
+            if !has_lower_bound(user_var) || lower_bound(user_var) < 0.0
+                error(
+                    "VRPSolver error: lower bound of unmapped variables must be nonnegative.",
+                )
+            end
+            push!(cols_lbs, lower_bound(user_var))
             push!(cols_ubs, has_upper_bound(user_var) ? upper_bound(user_var) : Inf)
             push!(cols_names, name(user_var))
             push!(cols_uservar, user_var)
-            push!(cols_costs, get(obj.terms, user_var, 0.0))
+            push!(cols_costs, get(obj_terms, user_var, 0.0))
             push!(
                 cols_types,
                 if is_integer(user_var)
@@ -1686,7 +1708,7 @@ function extract_optimizer_cols_info(user_model::VrpModel)
                     )
                 end
                 push!(cols_uservar, user_var)
-                push!(cols_costs, get(obj.terms, user_var, 0.0))
+                push!(cols_costs, get(obj_terms, user_var, 0.0))
                 push!(
                     cols_types,
                     if is_integer(user_var)
@@ -1759,6 +1781,8 @@ function build_optimizer_vars_and_constrs(
     for set_type in (MOI.LessThan{Float64}, MOI.GreaterThan{Float64}, MOI.EqualTo{Float64})
         append!(constrs_refs, all_constraints(user_form, AffExpr, set_type))
     end
+    nconstrs != length(constrs_refs) &&
+        error("VRPSolver error: nonlinear constraints are not supported.")
 
     for constr_ref in constrs_refs
         set = JuMP.constraint_object(constr_ref).set
@@ -1781,6 +1805,9 @@ function build_optimizer_vars_and_constrs(
     rows_id_vec = [Int[] for _ in 1:nb_cols]
     nonzeros_vec = [Float64[] for _ in 1:nb_cols]
     for (constr_idx, constr_ref) in enumerate(constrs_refs)
+        !iszero(JuMP.constraint_object(constr_ref).func.constant) && error(
+            "VRPSolver error: AffExpr with nonzero constant is not allowed when defining constraints.",
+        )
         terms = JuMP.constraint_object(constr_ref).func.terms
         for (user_var, coeff) in terms
             for id in optimizer_cols_info.uservar_to_colids[user_var]
@@ -1804,10 +1831,10 @@ end
 function has_integer_objective(user_model::VrpModel, optimizer_cols_info::OptimizerColsInfo)
     user_form = user_model.formulation
     user_vars = all_variables(user_form)
-    obj = objective_function(user_form)
+    obj_terms = get_obj_terms(user_form)
     for user_var in user_vars
         # checking if the coefficient in the objective function is integral
-        var_cost = get(obj.terms, user_var, 0.0)
+        var_cost = get(obj_terms, user_var, 0.0)
         if modf(var_cost)[1] != 0.0
             return false
         end
@@ -2080,9 +2107,7 @@ function JuMP.optimize!(optimizer::VrpOptimizer)
     @printf("%.2f & ", getstatistic(optimizer.bapcod_model, :bcRecBestDb))
     if has_solution
         if optimizer.integer_objective
-            print(
-                "$(Int(floor(getstatistic(optimizer.bapcod_model, :bcRecBestInc) + 0.5))) & ",
-            )
+            print("$(Int(round(getstatistic(optimizer.bapcod_model, :bcRecBestInc)))) & ")
         else
             @printf("%.2f & ", getstatistic(optimizer.bapcod_model, :bcRecBestInc))
         end
@@ -2186,13 +2211,12 @@ function get_objective_value(optimizer::VrpOptimizer)
     user_form = optimizer.user_model.formulation
     user_vars = all_variables(user_form)
     obj_value = 0.0
-    obj = objective_function(user_form)
+    obj_terms = get_obj_terms(user_form)
     for user_var in user_vars
-        obj_coeff = get(obj.terms, user_var, 0.0)
+        obj_coeff = get(obj_terms, user_var, 0.0)
         var_val = get_value(optimizer, user_var)
         obj_value += obj_coeff * var_val
     end
-    # CHECK: is this really needed?
     if optimizer.integer_objective
         return round(obj_value)
     else
