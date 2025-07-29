@@ -581,6 +581,26 @@ function wbcr_add_generic_capacity_cut(c_model::Ptr{Cvoid}, max_cap::Int, dem::V
     (status != 1) && error("Cannot add the generic capacity cut generator.")
 end
 
+function wbcr_add_generic_strongkpath_cut(
+    c_model::Ptr{Cvoid}, max_cap::Int, dem::Vector{Int}
+)
+    cint_dem = [Cint(d) for d in dem]
+    status = @bcr_ccall(
+        "addGenericStrongKPathCut",
+        Cint,
+        (Ptr{Cvoid}, Cint, Ptr{Cint}, Cint, Cint, Cdouble, Cdouble, Cint),
+        c_model,
+        Cint(max_cap),
+        cint_dem,
+        Cint(length(dem)),
+        Cint(0),
+        1.0,
+        1.0,
+        Cint(-1)
+    )
+    (status != 1) && error("Cannot add the generic strong k-path cut generator.")
+end
+
 function wbcr_set_source(c_net::Ptr{Cvoid}, n_id::Integer)
     @bcr_ccall("setSource", Cint, (Ptr{Cvoid}, Cint), c_net, Cint(n_id))
 end

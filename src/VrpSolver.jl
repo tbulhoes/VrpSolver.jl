@@ -1483,7 +1483,7 @@ function add_capacity_cut_separator!(
 )
     for (ps_set, d) in demands
         !(ps_set in model.packing_sets) && error(
-            "Collection that is not a packing set was used in a capacity cut separator." *
+            "VRPSolver error: collection that is not a packing set was used in a capacity cut separator." *
             " Only the packing set collections can be used for add_capacity_cut_separator",
         )
     end
@@ -1573,10 +1573,13 @@ function add_strongkpath_cut_separator!(
 )
     for (ps_set, _) in demands
         !(ps_set in model.packing_sets) && error(
-            "VRPSolver error: Collection that is not a packing set was used in a strong k-path cut separator." *
+            "VRPSolver error: collection that is not a packing set was used in a strong k-path cut separator." *
             " Only the packing set collections can be used for add_strongkpath_cut_separator",
         )
     end
+
+    # need to define covering sets for strong k-path cuts
+    model.define_covering_sets = true
 
     # create and map variables to all uncovered arcs connecting packing set pairs
     if !isempty(model.arcs_by_packing_set_pairs)
@@ -1612,7 +1615,7 @@ function add_strongkpath_cut_separator!(
         end
     end
 
-    push!(model.strongkpath_cuts_info, CapacityCutInfo(demands, capacity, -1))
+    push!(model.strongkpath_cuts_info, CapacityCutInfo(id_demands, Int(capacity), -1))
 end
 
 function add_strongkpath_cut_separators_to_optimizer(optimizer::VrpOptimizer)
@@ -2002,6 +2005,8 @@ function VrpOptimizer(
         "1",
         "--ApplyStrongBranchingEvaluation",
         "true",
+        "--RCSPrankOneCutsTypeToSeparate",
+        "1",      # FIXME: Covering cuts makes VrpSolver crash
         "-t",
         baptreedot,
     ],
@@ -2029,6 +2034,10 @@ function VrpOptimizer(
 
     for rcc in user_model.cap_cuts_info
         wbcr_add_generic_capacity_cut(bapcod_model_ptr, rcc.capacity, rcc.demands)
+    end
+
+    for rcc in user_model.strongkpath_cuts_info
+        wbcr_add_generic_strongkpath_cut(bapcod_model_ptr, rcc.capacity, rcc.demands)
     end
 
     if user_model.use_rank1_cuts
