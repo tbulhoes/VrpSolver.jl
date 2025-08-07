@@ -162,7 +162,7 @@ struct SpSol
     multiplicity::Int
     user_vars_in_sol::Dict{JuMP.VariableRef,Float64}
     arc_seq::Vector{VrpArc}
-    true_cost::Float64
+    cost_var_value::Float64
     cost_var::Union{JuMP.VariableRef,Nothing}
 end
 
@@ -2320,11 +2320,11 @@ function register_solutions(optimizer::VrpOptimizer, bapcodsol)
         arcs_ids = [
             graph.arc_bapcod_id_to_id[arc_bap_id] for arc_bap_id in c_getArcs(bapcodsol)
         ]
-        true_cost = 0.0
+        cost_var_value = 0.0
         cost_var::Union{JuMP.VariableRef,Nothing} = nothing
         for res in graph.resources
             if !isnothing(res.cost_var)
-                true_cost = c_getTrueCost(bapcodsol)
+                cost_var_value = c_getTrueCost(bapcodsol)
                 cost_var = res.cost_var
                 break
             end
@@ -2334,7 +2334,7 @@ function register_solutions(optimizer::VrpOptimizer, bapcodsol)
             mult,
             get_path_uservar_map(arcs_ids, graph),
             [graph.arcs[arc_id] for arc_id in arcs_ids],
-            true_cost,
+            cost_var_value,
             cost_var,
         )
         push!(spsols_in_sol, spsol)
@@ -2436,7 +2436,7 @@ function get_value(optimizer::VrpOptimizer, user_var::JuMP.VariableRef, path_id:
         error("VrpSolver error: invalid path id")
     path = optimizer.spsols_in_sol[path_id]
     if !isnothing(path.cost_var) && user_var == path.cost_var
-        return path.true_cost
+        return path.cost_var_value
     end
     return get(path.user_vars_in_sol, user_var, 0.0)
 end
