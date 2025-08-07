@@ -471,6 +471,81 @@ function wbcr_set_arc_consumption_ub(
     )
 end
 
+function wbcr_set_as_custom_resource(c_net::Ptr{Cvoid}, res_id::Integer)
+    @bcr_ccall("setAsCustomResource", Cvoid, (Ptr{Cvoid}, Cint), c_net, Cint(res_id))
+end
+
+function wbcr_set_as_cost_resource(
+    c_net::Ptr{Cvoid}, res_id::Integer, c_model::Ptr{Cvoid}, var_col::Int
+)
+    @bcr_ccall(
+        "setAsCostResource",
+        Cvoid,
+        (Ptr{Cvoid}, Cint, Ptr{Cvoid}, Cint),
+        c_net,
+        Cint(res_id),
+        c_model,
+        Cint(var_col)
+    )
+end
+
+function wbcr_set_arc_custom_res_params(
+    _::Ptr{Cvoid}, _::Integer, _::Integer, _::T
+) where {T} end
+
+function wbcr_set_vertex_custom_res_params(
+    _::Ptr{Cvoid}, _::Integer, _::Integer, _::T
+) where {T} end
+
+function wbcr_set_const_custom_res_params(_::Ptr{Cvoid}, _::Integer, _::T) where {T} end
+
+macro register_custom_res_param_types(arc_type, vertex_type, const_type)
+    return esc(
+        quote
+            function VrpSolver.wbcr_set_arc_custom_res_params(
+                c_net::Ptr{Cvoid}, arc_id::Integer, res_id::Integer, params::$(arc_type)
+            )
+                ccall(
+                    ("bcRCSP_setEdgeCustomResParams", get(ENV, "BAPCOD_RCSP_LIB", "")),
+                    Cint,
+                    (Ptr{Cvoid}, Cint, Cint, $(arc_type)),
+                    c_net,
+                    Cint(arc_id),
+                    Cint(res_id),
+                    params,
+                )
+            end
+
+            function VrpSolver.wbcr_set_vertex_custom_res_params(
+                c_net::Ptr{Cvoid}, n_id::Integer, res_id::Integer, params::$(vertex_type)
+            )
+                ccall(
+                    ("bcRCSP_setVertexCustomResParams", get(ENV, "BAPCOD_RCSP_LIB", "")),
+                    Cint,
+                    (Ptr{Cvoid}, Cint, Cint, $(vertex_type)),
+                    c_net,
+                    Cint(n_id),
+                    Cint(res_id),
+                    params,
+                )
+            end
+
+            function VrpSolver.wbcr_set_const_custom_res_params(
+                c_net::Ptr{Cvoid}, res_id::Integer, params::$(const_type)
+            )
+                ccall(
+                    ("bcRCSP_setConstCustomResParams", get(ENV, "BAPCOD_RCSP_LIB", "")),
+                    Cint,
+                    (Ptr{Cvoid}, Cint, $(const_type)),
+                    c_net,
+                    Cint(res_id),
+                    params,
+                )
+            end
+        end,
+    )
+end
+
 function wbcr_attach_elementarity_set_to_node(
     c_net::Ptr{Cvoid}, n_id::Integer, es_id::Integer
 )
@@ -800,6 +875,12 @@ function c_getValueOfVar(mptr::Ptr{Cvoid}, solution::Ptr{Cvoid}, colid::Int)
         value
     )
     return Float64(value[])
+end
+
+function c_getTrueCost(solution::Ptr{Cvoid})
+    cost = Ref{Cdouble}(0.0)
+    @bcsol_ccall("getTrueCost", Cint, (Ptr{Cvoid}, Ref{Cdouble}), solution, cost)
+    return Float64(cost[])
 end
 
 function c_getMultiplicity(solution::Ptr{Cvoid})
