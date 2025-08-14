@@ -2046,7 +2046,7 @@ function VrpOptimizer(
 
     if haskey(user_model.branching_priorities, "_res_cons_branching_")
         priority = user_model.branching_priorities["_res_cons_branching_"]
-        c_add_elemset_resource_cons_branching(bapcod_model_ptr, priority)
+        c_add_elemset_resource_cons_branching(bapcod_model_ptr, Float64(priority))
     end
     if haskey(user_model.branching_priorities, "_ryanfoster_branching_")
         priority = user_model.branching_priorities["_ryanfoster_branching_"]
