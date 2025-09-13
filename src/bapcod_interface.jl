@@ -931,7 +931,7 @@ function mastercallback(
     optimizer = unsafe_pointer_to_objref(userdata)
 
     # set the solution to be the node relaxation solution
-    if !register_solutions(optimizer, solptr)
+    if !register_solutions(optimizer, solptr; from_model = false)
         return nothing
     end
 
