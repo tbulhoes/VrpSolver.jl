@@ -2144,7 +2144,7 @@ function JuMP.optimize!(optimizer::VrpOptimizer)
     return status, has_solution
 end
 
-function register_solutions(optimizer::VrpOptimizer, bapcodsol)
+function register_solutions(optimizer::VrpOptimizer, bapcodsol; from_model = true)
     bapcod_model = optimizer.bapcod_model
     user_vars = all_variables(optimizer.user_model.formulation)
     spsols_in_sol = SpSol[]
@@ -2155,10 +2155,12 @@ function register_solutions(optimizer::VrpOptimizer, bapcodsol)
     empty!(optimizer.unmapped_vars_in_sol)
     empty!(optimizer.spsols_in_sol)
 
-    # getting master solution
-    if c_start(bapcodsol, bapcod_model) != 1
-        optimizer.sol_defined = false
-        return false
+    if from_model
+        # getting master solution if not already in `bapcodsol`
+        if c_start(bapcodsol, bapcod_model) != 1
+            optimizer.sol_defined = false
+            return false
+        end
     end
 
     # getting unmapped vars values
@@ -2186,6 +2188,24 @@ function register_solutions(optimizer::VrpOptimizer, bapcodsol)
             [graph.arcs[arc_id] for arc_id in arcs_ids],
         )
         push!(spsols_in_sol, spsol)
+
+        if !from_model  # used for the cut callbacks
+            for user_var in user_vars
+                if optimizer_cols_info.uservar_to_problem_type[user_var] == :DW_MASTER
+                    continue
+                end
+                user_var_val = 0.0
+                for colid in optimizer_cols_info.uservar_to_colids[user_var]
+                    if optimizer_cols_info.cols_problems[colid + 1][2] == subproblem_id
+                        user_var_val += c_getValueOfVar(bapcod_model, bapcodsol, colid)
+                    end
+                end
+                if user_var_val > 0
+                    spsol.user_vars_in_sol[user_var] = user_var_val
+                end
+            end
+        end
+
         status = c_next(bapcodsol)
     end
     optimizer.spsols_in_sol = spsols_in_sol
