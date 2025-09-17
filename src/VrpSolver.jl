@@ -164,6 +164,7 @@ mutable struct VrpOptimizer
     spsols_in_sol::Vector{SpSol}
     unmapped_vars_in_sol::Dict{JuMP.VariableRef,Float64}
     sol_defined::Bool
+    sol_from_model::Bool
     integer_objective::Bool
     initUB::Float64
     stats::Dict{} # execution statistics
@@ -2062,6 +2063,7 @@ function VrpOptimizer(
         Tuple{Int,Dict{JuMP.VariableRef,Float64}}[],
         Dict{JuMP.VariableRef,Float64}(),
         false,
+        false,
         integer_objective,
         -1,
         Dict(),
@@ -2144,7 +2146,7 @@ function JuMP.optimize!(optimizer::VrpOptimizer)
     return status, has_solution
 end
 
-function register_solutions(optimizer::VrpOptimizer, bapcodsol)
+function register_solutions(optimizer::VrpOptimizer, bapcodsol; from_model = true)
     bapcod_model = optimizer.bapcod_model
     user_vars = all_variables(optimizer.user_model.formulation)
     spsols_in_sol = SpSol[]
@@ -2155,10 +2157,12 @@ function register_solutions(optimizer::VrpOptimizer, bapcodsol)
     empty!(optimizer.unmapped_vars_in_sol)
     empty!(optimizer.spsols_in_sol)
 
-    # getting master solution
-    if c_start(bapcodsol, bapcod_model) != 1
-        optimizer.sol_defined = false
-        return false
+    if from_model
+        # getting master solution if not already in `bapcodsol`
+        if c_start(bapcodsol, bapcod_model) != 1
+            optimizer.sol_defined = false
+            return false
+        end
     end
 
     # getting unmapped vars values
@@ -2186,11 +2190,30 @@ function register_solutions(optimizer::VrpOptimizer, bapcodsol)
             [graph.arcs[arc_id] for arc_id in arcs_ids],
         )
         push!(spsols_in_sol, spsol)
+
+        if !from_model  # used for the cut callbacks
+            for user_var in user_vars
+                if optimizer_cols_info.uservar_to_problem_type[user_var] == :DW_MASTER
+                    continue
+                end
+                user_var_val = 0.0
+                for colid in optimizer_cols_info.uservar_to_colids[user_var]
+                    if optimizer_cols_info.cols_problems[colid + 1][2] == subproblem_id
+                        user_var_val += c_getValueOfVar(bapcod_model, bapcodsol, colid)
+                    end
+                end
+                if user_var_val > 0
+                    spsol.user_vars_in_sol[user_var] = user_var_val
+                end
+            end
+        end
+
         status = c_next(bapcodsol)
     end
     optimizer.spsols_in_sol = spsols_in_sol
 
     optimizer.sol_defined = true
+    optimizer.sol_from_model = from_model
 
     return true
 end
@@ -2230,7 +2253,7 @@ function get_objective_value(optimizer::VrpOptimizer)
         var_val = get_value(optimizer, user_var)
         obj_value += obj_coeff * var_val
     end
-    if optimizer.integer_objective
+    if optimizer.integer_objective && optimizer.sol_from_model
         return round(obj_value)
     else
         return obj_value
@@ -2240,7 +2263,7 @@ end
 """
     get_value(optimizer::VrpOptimizer, user_var::JuMP.VariableRef)
 
-Get the value for a decision variable after optimization.
+Get the value for a decision variable after optimization or from a cut callback.
 
 """
 function get_value(optimizer::VrpOptimizer, user_var::JuMP.VariableRef)
@@ -2251,7 +2274,7 @@ function get_value(optimizer::VrpOptimizer, user_var::JuMP.VariableRef)
     else
         val = 0.0
         for path_id in 1:length(optimizer.spsols_in_sol)
-            val += get_value(optimizer, user_var, path_id)
+            val += _get_value(optimizer, user_var, path_id)
         end
         return val
     end
@@ -2263,7 +2286,7 @@ end
 """
     get_values(optimizer::VrpOptimizer, user_vars::Array{JuMP.VariableRef,1})
 
-Get the values for an array of decision variables after optimization.
+Get the values for an array of decision variables after optimization or from a cut callback.
    
 
 """
@@ -2274,12 +2297,20 @@ end
 """
     get_value(optimizer::VrpOptimizer, user_var::JuMP.VariableRef, path_id::Int)
 
-Get the value for a decision variable due to a specific path.
+Get the value for a decision variable due to a single copy of a specific path. This function cannot be called
+from a cut callback as VrpSolver only supports robust cuts.
 
 `path_id` shoul be a value between 1 and the number of positive paths.
 """
 function get_value(optimizer::VrpOptimizer, user_var::JuMP.VariableRef, path_id::Int)
     !optimizer.sol_defined && error("VRPSolver error: solution is undefined")
+    !optimizer.sol_from_model && error(
+        "VRPSolver error: only the values of original variables can be retrived in callbacks",
+    )
+    return _get_value(optimizer, user_var, path_id)
+end
+
+function _get_value(optimizer::VrpOptimizer, user_var::JuMP.VariableRef, path_id::Int)
     !(1 <= path_id <= length(optimizer.spsols_in_sol)) &&
         error("VrpSolver error: invalid path id")
     return get(optimizer.spsols_in_sol[path_id].user_vars_in_sol, user_var, 0.0)
@@ -2288,11 +2319,15 @@ end
 """
     get_value(optimizer::VrpOptimizer, path_id::Int)
 
-Get the value for a path variable (λ variable created internally due to the mapping).
+Get the value for a path variable (λ variable created internally due to the mapping). This function cannot 
+be called from a cut callback as VrpSolver only supports robust cuts.
 
 """
 function get_value(optimizer::VrpOptimizer, path_id::Int)
     !optimizer.sol_defined && error("VRPSolver error: solution is undefined")
+    !optimizer.sol_from_model && error(
+        "VRPSolver error: only the values of original variables can be retrived in callbacks",
+    )
     !(1 <= path_id <= length(optimizer.spsols_in_sol)) &&
         error("VrpSolver error: invalid path id")
     return optimizer.spsols_in_sol[path_id][1]
@@ -2301,8 +2336,8 @@ end
 """
     get_values(optimizer::VrpOptimizer, user_vars::Array{JuMP.VariableRef,1}, path_id::Int)
 
-Get the values for an array of decision variables that would be obtained from mapping only a single specific path variable (with value 1) to them. 
-Necessary for identifying which paths are part of the solution in some models.
+Get the values for an array of decision variables due to a single copy of a specific path. This function cannot be called
+from a cut callback as VrpSolver only supports robust cuts.
 
 """
 function get_values(
@@ -2315,11 +2350,15 @@ end
     get_number_of_positive_paths(optimizer::VrpOptimizer)
 
 Get the number of paths (lambda variables) with positive value in the solution. Those paths will be numbered from 1 to get_number_of_positive_paths for the purpose 
-of retrieving the value of the lambda variables and for identifying the path.
+of retrieving the value of the lambda variables and for identifying the path. This function cannot be called
+from a cut callback as VrpSolver only supports robust cuts.
 
 """
 function get_number_of_positive_paths(optimizer::VrpOptimizer)
     !optimizer.sol_defined && error("VRPSolver error: solution is undefined")
+    !optimizer.sol_from_model && error(
+        "VRPSolver error: only the values of original variables can be retrived in callbacks",
+    )
     return length(optimizer.spsols_in_sol)
 end
 
@@ -2327,10 +2366,13 @@ end
     get_path_arcs(optimizer::VrpOptimizer, path_id::Int)
 
 Returns a tuple where the first element is the `VrpGraph` and the second element is the sequence of arcs associated with the path.
-
+This function cannot be called from a cut callback as VrpSolver only supports robust cuts.
 """
 function get_path_arcs(optimizer::VrpOptimizer, path_id::Int)
     !optimizer.sol_defined && error("VRPSolver error: solution is undefined")
+    !optimizer.sol_from_model && error(
+        "VRPSolver error: only the values of original variables can be retrived in callbacks",
+    )
     !(1 <= path_id <= length(optimizer.spsols_in_sol)) &&
         error("VrpSolver error: invalid path id")
 
