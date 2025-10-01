@@ -34,6 +34,7 @@ installation which contains the executable files and shared libraries.  For exam
 export LD_LIBRARY_PATH=/opt/ibm/ILOG/CPLEX_Studio1210/cplex/bin/x86-64_linux/:$LD_LIBRARY_PATH
 ```
 
+
 On Windows, be sure that the `PATH` environment variable contains the folder with CPLEX dynamic library. -->
 
 3. **Set the BaPCod shared library**  
