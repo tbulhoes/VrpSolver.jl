@@ -1,0 +1,75 @@
+# VrpSolver
+
+The VrpSolver.jl package is a Julia interface for [VrpSolver](https://vrpsolver.math.u-bordeaux.fr/). Unlike the
+original distribution, this package allows one to run VrpSolver on any major operating system without Docker.
+
+This package is *only for academic use*.
+
+## Requirements
+
+- [Julia](https://julialang.org/downloads/) versions 1.11.5 and higher.
+- [CPLEX](https://www.ibm.com/products/ilog-cplex-optimization-studio) versions 12.9 and higher.
+- [BaPCod](https://bapcod.math.u-bordeaux.fr/) shared library (see below how to generate it).
+
+
+## Adding VrpSolver.jl to your project
+
+To include [`VrpSolver.jl`](https://github.com/tbulhoes/VrpSolver.jl) in your Julia project, follow these steps:
+
+1. **Open your project environment**  
+   In the Julia REPL, activate the environment where you are developing:
+   ```julia
+   ] activate .
+
+2. **Add the package from GitHub**  
+   Since `VrpSolver.jl` is not yet registered in the Julia General registry, you need to add it directly from the GitHub repository:
+   ```julia
+   ] add https://github.com/tbulhoes/VrpSolver.jl
+
+<!-- On Linux, set the `LD_LIBRARY_PATH` environment variable with the absolute path to the subdirectory of your CPLEX
+installation which contains the executable files and shared libraries.  For example, if your CPLEX is installed at
+`/opt/ibm/ILOG/CPLEX_Studio1210` and you are using Bash, you can declare it in the `~/.bashrc`:
+
+```
+export LD_LIBRARY_PATH=/opt/ibm/ILOG/CPLEX_Studio1210/cplex/bin/x86-64_linux/:$LD_LIBRARY_PATH
+```
+
+
+On Windows, be sure that the `PATH` environment variable contains the folder with CPLEX dynamic library. -->
+
+3. **Set the BaPCod shared library**  
+
+    Set the `BAPCOD_RCSP_LIB` environment variable with the absolute path to the BaPCod shared library (which has
+    `.so` extension on linux, `.dylib` extension on Mac OS, and `.dll` extension on Windows).
+    For example, if you are using Bash on Linux, you can declare it in the `~/.bashrc`:
+
+    ```
+    export BAPCOD_RCSP_LIB=/path/to/lib/libbapcod-shared.so
+    ```
+
+4. **Optional step**  
+    If you want to use the [complete formulation](https://vrpsolver.math.u-bordeaux.fr/doc/methods.html#VrpSolver.get_complete_formulation) (the one that includes mapping constraints with λ variables for paths, and it's very useful for debugging), then you have to configurate a MIP solver via JuMP (e.g. you can install [CPLEX.jl](https://github.com/jump-dev/CPLEX.jl), which requires CPLEX version 12.10 or higher).  
+
+## Producing BaPCod shared library
+
+If the BaPCod shared library you have does not work for you, or you do not have one, you can produce it in the following
+way.
+
+Download BaPCod source code on its [web-page](https://bapcod.math.u-bordeaux.fr/). You need an e-mail address from an academic institution for this. Then, install BaPCod using installation instructions in the [BaPCod user guide](https://bapcod.math.u-bordeaux.fr/#userguide).
+Read the file `README.md` inside the BaPCod folder, and follow the instructions to produce the BaPCod shared library. The library file is `<path to BaPCod>/build/Bapcod/libbapcod-shared.so` on Linux, `<path to BaPCod>/build/Bapcod/libbapcod-shared.dylib` on Mac OS, and `<path to BaPCod>/build/Bapcod/Release/bapcod-shared.dll` on Windows. Note that the `BAPCOD_RCSP_LIB` environment variable should contain the absolute path to this BaPCod shared library, and not to RCSP library. 
+
+<!-- ## Troubleshooting
+
+On Linux, you may have error:
+
+```
+ERROR: LoadError: could not load library "<path to>/libbapcod-shared.so"
+<path to Julia>/bin/../lib/julia/libstdc++.so.6: version `GLIBCXX_3.4.26' not found (required by "<path to>/libbapcod-shared.so")
+```
+
+This is because Julia comes with an older version of the `libstdc++.so.6` library. One solution is build Julia from sources. 
+An easier solution is to replace file `<path to Julia>/lib/julia/libstdc++.so.6` with your system `libstdc++.so.6` file. For local machines it is usually located in the folder `/usr/lib/x86_64-linux-gnu/`. -->
+
+## Demos
+
+The demos are available [here](https://github.com/artalvpes/VRPSolverDemos) 
