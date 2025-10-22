@@ -2432,7 +2432,11 @@ function get_value(optimizer::VrpOptimizer, user_var::JuMP.VariableRef)
     end
 end
 function JuMP.value(user_var::JuMP.VariableRef)
-    return get_value(user_var.model.ext[:optimizer], user_var)
+    if (haskey(user_var.model.ext, :optimizer))
+        return get_value(user_var.model.ext[:optimizer], user_var)
+    else
+        return MOI.get(owner_model(user_var), MOI.VariablePrimal(1), user_var)
+    end
 end
 
 """
