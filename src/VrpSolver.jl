@@ -18,6 +18,10 @@ export add_resource!,
     set_arc_consumption!,
     set_arc_resource_bounds!,
     get_arc_consumption,
+    set_arc_custom_res_params!,
+    set_vertex_custom_res_params!,
+    set_const_custom_res_params!,
+    @register_custom_res_param_types,
     add_elem_set_to_arc_init_ng_neighbourhood!,
     get_arc_set,
     set_arc_packing_sets!,
@@ -55,6 +59,7 @@ mutable struct VrpVertex
     elem_set::Int
     res_bounds::Dict{Int,Tuple{Float64,Float64}} #only for binary resources
     ng_set::Array{Int,1}
+    custom_data::Dict{Int,Any}
 end
 
 mutable struct VrpArc
@@ -67,6 +72,7 @@ mutable struct VrpArc
     res_bounds::Dict{Int,Tuple{Float64,Float64}} #only for non-binary resources
     vars::Array{Tuple{JuMP.VariableRef,Float64},1}
     ng_set::Array{Int,1}
+    custom_data::Dict{Int,Any}
 end
 
 mutable struct VrpResource
@@ -74,8 +80,11 @@ mutable struct VrpResource
     is_main::Bool
     is_binary::Bool
     is_disposable::Bool
+    is_custom::Bool
     is_automatic::Bool
     step_size::Float64
+    custom_data::Any
+    cost_var::Union{JuMP.VariableRef,Nothing}
 end
 
 mutable struct VrpGraph
@@ -153,6 +162,8 @@ struct SpSol
     multiplicity::Int
     user_vars_in_sol::Dict{JuMP.VariableRef,Float64}
     arc_seq::Vector{VrpArc}
+    cost_var_value::Float64
+    cost_var::Union{JuMP.VariableRef,Nothing}
 end
 
 mutable struct VrpOptimizer
@@ -281,7 +292,7 @@ function VrpGraph(
     standalone_filename::String = "",
 )
     vertices = [
-        VrpVertex(nodes[i], i, -1, -1, Dict{Float64,Float64}(), Int[]) for
+        VrpVertex(nodes[i], i, -1, -1, Dict{Float64,Float64}(), Int[], Dict{Int,Any}()) for
         i in 1:length(nodes)
     ]
     user_vertex_id_map = Dict{Int,Int}()
@@ -303,6 +314,7 @@ function VrpGraph(
                 -1,
                 Dict{Int,Tuple{Float64,Float64}}(),
                 Int[],
+                Dict{Int,Any}(),
             ),
         )
         cycle_problem = true
@@ -395,13 +407,27 @@ r2 = add_resource!(graph, main=true, disposable=false) # create a main, non-disp
 
 """
 function add_resource!(
-    graph::VrpGraph; main = false, binary = false, disposable = true, step_size = 0.0
+    graph::VrpGraph;
+    main = false,
+    binary = false,
+    disposable = true,
+    custom = false,
+    cost_var::Union{JuMP.VariableRef,Nothing} = nothing,
+    step_size = 0.0,
 )
     main && binary && error("VRPSolver error: binary resource cannot be main resource")
     binary && disposable && error("VRPSolver error: binary resource cannot be disposable")
+    custom &&
+        (main || binary) &&
+        error("VRPSolver error: customized resource cannot be main or binary")
 
     res_id = length(graph.resources) + 1
-    push!(graph.resources, VrpResource(res_id, main, binary, disposable, false, step_size))
+    push!(
+        graph.resources,
+        VrpResource(
+            res_id, main, binary, disposable, custom, false, step_size, nothing, cost_var
+        ),
+    )
     if binary
         for vertex in graph.vertices
             vertex.res_bounds[res_id] = (0.0, 1.0)
@@ -621,6 +647,7 @@ function add_arc!(
             default_resbounds(graph),
             vars,
             Int[],
+            Dict{Int,Any}(),
         )
     else
         arc = VrpArc(
@@ -633,6 +660,7 @@ function add_arc!(
             default_resbounds(graph),
             vars,
             Int[],
+            Dict{Int,Any}(),
         )
     end
     push!(graph.incoming_arcs[arc.head], arc)
@@ -710,6 +738,78 @@ end
 
 function set_arc_resource_bounds!(graph::VrpGraph, arc_id::Int, res_id::Int, lb, ub)
     set_arc_resource_bounds!(graph, arc_id, res_id, Float64(lb), Float64(ub))
+end
+
+"""
+    set_arc_custom_res_params!(graph::VrpGraph, arc_id::Int, res_id::Int, value::Union{Int,Float64})
+
+Set the parameters attached to a given arc for a specific customized resource.
+
+# Arguments
+- `graph::VrpGraph`: graph to be considered
+- `arc_id::Int`: arc to be considered
+- `res_id::Int`: resource id to define parameters 
+- `values::T`: struct containing all parameter values
+
+# Example
+```julia
+struct MyParams
+    first::Cint
+    secoond::Cdouble
+end
+
+set_arc_custom_res_params!(graph, 3, 1, MyParams(4, 2.5)) # set the parameters values 4 and 2.5 for the resource 1 when passing by the arc 3 
+```
+"""
+function set_arc_custom_res_params!(
+    graph::VrpGraph, arc_id::Int, res_id::Int, value::T
+) where {T}
+    !graph.resources[res_id].is_custom &&
+        error("VRPSolver error: resource $(res_id) is not customized")
+    check_id(arc_id, 1, length(graph.arcs))
+    graph.arcs[arc_id].custom_data[res_id] = value
+end
+
+"""
+    set_vertex_custom_res_params!(graph::VrpGraph, vertex::Int, res_id::Int, value::T)
+
+Set the parameters attached to a given vertex for a specific customized resource.
+
+Defining the interval ``[lb,ub]`` for res_id at vertex is equivalent to defining the same interval for every incoming arc of vertex.
+
+# Arguments
+- `graph::VrpGraph`: graph to be considered
+- `vertex::Int`: vertex id in the VrpGraph `graph`.
+- `res_id::Int`: resource id in the VrpGraph `graph`.
+- `values::T`: struct containing all parameter values
+"""
+function set_vertex_custom_res_params!(
+    graph::VrpGraph, vertex::Int, res_id::Int, value::T
+) where {T}
+    !graph.resources[res_id].is_custom &&
+        error("VRPSolver error: resource $(res_id) is not customized")
+    check_id(res_id, 1, length(graph.resources))
+    v_id = graph.user_vertex_id_map[vertex]
+    graph.vertices[v_id].custom_data[res_id] = value # store the value for res_id on vertex
+    if graph.cycle_problem && (v_id == graph.source_id) # also store for graph.sink_id (because the user will not set)
+        graph.vertices[graph.sink_id].custom_data[res_id] = value
+    end
+end
+
+"""
+    set_const_custom_res_params!(graph::VrpGraph, res_id::Int, value::Union{Int,Float64})
+
+Set the constant parameters for a specific customized resource.
+
+# Arguments
+- `graph::VrpGraph`: graph to be considered
+- `res_id::Int`: resource id to define parameters 
+- `values::T`: struct containing all parameter values
+"""
+function set_const_custom_res_params!(graph::VrpGraph, res_id::Int, value::T) where {T}
+    !graph.resources[res_id].is_custom &&
+        error("VRPSolver error: resource $(res_id) is not customized")
+    graph.resources[res_id].custom_data = value
 end
 
 function is_preprocessed_arc(graph::VrpGraph, arc::VrpArc)
@@ -1209,6 +1309,15 @@ function extract_user_var_to_graphs(user_model::VrpModel)
                 end
             end
         end
+        for res in user_model.graphs[graph_id].resources
+            if !isnothing(res.cost_var)
+                if !haskey(var_to_graphs, res.cost_var)
+                    var_to_graphs[res.cost_var] = [graph_id]
+                elseif !(graph_id in var_to_graphs[res.cost_var])
+                    push!(var_to_graphs[res.cost_var], graph_id)
+                end
+            end
+        end
     end
     return var_to_graphs
 end
@@ -1262,6 +1371,22 @@ function generate_pricing_networks(
                 end
             else
                 wbcr_new_resource(c_net_ptr, resource.id - 1)
+                if resource.is_custom
+                    wbcr_set_as_custom_resource(c_net_ptr, resource.id - 1)
+                    wbcr_set_const_custom_res_params(
+                        c_net_ptr, resource.id - 1, resource.custom_data
+                    )
+                end
+                if !isnothing(resource.cost_var)
+                    colids = get(
+                        optimizer_cols_info.uservar_to_colids, resource.cost_var, Int[]
+                    )
+                    if !isempty(colids)
+                        wbcr_set_as_cost_resource(
+                            c_net_ptr, resource.id - 1, bapcod_model, colids[1]
+                        )
+                    end
+                end
                 if resource.is_main
                     wbcr_set_as_main_resource(c_net_ptr, resource.id - 1, 0.0)
                 end
@@ -1304,6 +1429,14 @@ function generate_pricing_networks(
                             vertex.id - 1,
                             resource.id - 1,
                             vertex.res_bounds[resource.id][2],
+                        )
+                    end
+                    if haskey(vertex.custom_data, resource.id)
+                        wbcr_set_vertex_custom_res_params(
+                            c_net_ptr,
+                            vertex.id - 1,
+                            resource.id - 1,
+                            vertex.custom_data[resource.id],
                         )
                     end
                 end
@@ -1371,6 +1504,14 @@ function generate_pricing_networks(
                         resource.id - 1,
                         arc.res_bounds[resource.id][2],
                     )
+                    if haskey(arc.custom_data, resource.id)
+                        wbcr_set_arc_custom_res_params(
+                            c_net_ptr,
+                            arc_bapcod_id,
+                            resource.id - 1,
+                            arc.custom_data[resource.id],
+                        )
+                    end
                 end
             end
             # adding arc to packing_set
@@ -2183,11 +2324,22 @@ function register_solutions(optimizer::VrpOptimizer, bapcodsol; from_model = tru
         arcs_ids = [
             graph.arc_bapcod_id_to_id[arc_bap_id] for arc_bap_id in c_getArcs(bapcodsol)
         ]
+        cost_var_value = 0.0
+        cost_var::Union{JuMP.VariableRef,Nothing} = nothing
+        for res in graph.resources
+            if !isnothing(res.cost_var)
+                cost_var_value = c_getTrueCost(bapcodsol)
+                cost_var = res.cost_var
+                break
+            end
+        end
         spsol = SpSol(
             graph.id,
             mult,
             get_path_uservar_map(arcs_ids, graph),
             [graph.arcs[arc_id] for arc_id in arcs_ids],
+            cost_var_value,
+            cost_var,
         )
         push!(spsols_in_sol, spsol)
 
@@ -2317,7 +2469,11 @@ end
 function _get_value(optimizer::VrpOptimizer, user_var::JuMP.VariableRef, path_id::Int)
     !(1 <= path_id <= length(optimizer.spsols_in_sol)) &&
         error("VrpSolver error: invalid path id")
-    return get(optimizer.spsols_in_sol[path_id].user_vars_in_sol, user_var, 0.0)
+    path = optimizer.spsols_in_sol[path_id]
+    if !isnothing(path.cost_var) && user_var == path.cost_var
+        return path.cost_var_value
+    end
+    return get(path.user_vars_in_sol, user_var, 0.0)
 end
 
 """
