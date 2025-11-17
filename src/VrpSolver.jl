@@ -2066,27 +2066,36 @@ function set_branching_priorities_in_optimizer(
         exp_array_id = register_branching_expression(
             bapcod_model_ptr, name, Float64(priority)
         )
-        for index in keys(exp_family)
+        for index in
+            keys((exp_family isa Containers.SparseAxisArray) ? exp_family.data : exp_family)
             expr = exp_family[index]
-            if expr.constant != 0.0
-                error(
-                    "VRPSolver error: constant part of branching expression must be equal to zero",
-                )
-            end
-            colsids, coeffs = Int[], Float64[]
-            for user_var_idx in 1:length(expr.terms.keys)
-                user_var = expr.terms.keys[user_var_idx]
-                coeff = expr.terms.vals[user_var_idx]
-                for colid in optimizer_cols_info.uservar_to_colids[user_var]
+            if expr isa VariableRef
+                colsids, coeffs = Int[], Float64[]
+                for colid in optimizer_cols_info.uservar_to_colids[expr]
                     push!(colsids, colid)
-                    push!(coeffs, coeff)
+                    push!(coeffs, 1.0)
+                end
+            else
+                if expr.constant != 0.0
+                    error(
+                        "VRPSolver error: constant part of branching expression must be equal to zero",
+                    )
+                end
+                colsids, coeffs = Int[], Float64[]
+                for user_var_idx in 1:length(expr.terms.keys)
+                    user_var = expr.terms.keys[user_var_idx]
+                    coeff = expr.terms.vals[user_var_idx]
+                    for colid in optimizer_cols_info.uservar_to_colids[user_var]
+                        push!(colsids, colid)
+                        push!(coeffs, coeff)
+                    end
                 end
             end
             if isempty(colsids)
-                @warn "VRPSolver warning: branching expression with name $(name) and index $(index.I[1]) is empty"
+                @warn "VRPSolver warning: branching expression with name $(name) and index $(index) is empty"
             else
                 add_branching_expression(
-                    bapcod_model_ptr, exp_array_id, index.I[1], colsids, coeffs
+                    bapcod_model_ptr, exp_array_id, index, colsids, coeffs
                 )
             end
         end
@@ -2175,7 +2184,9 @@ function VrpOptimizer(
     set_branching_priorities_in_optimizer(user_model, bapcod_model_ptr, optimizer_cols_info)
 
     for rcc in user_model.cap_cuts_info
-        wbcr_add_generic_capacity_cut(bapcod_model_ptr, rcc.capacity, rcc.demands)
+        wbcr_add_generic_capacity_cut(
+            bapcod_model_ptr, rcc.capacity, rcc.demands, rcc.two_path_cuts_res_id
+        )
     end
 
     for rcc in user_model.strongkpath_cuts_info
