@@ -1815,19 +1815,28 @@ function extract_optimizer_cols_info(user_model::VrpModel)
         if !haskey(user_var_to_graphs, user_var) # unmapped variable
             push!(colsids, nextcolid)
             push!(cols_problems, (:DW_MASTER, 0))
-            if !has_lower_bound(user_var) || lower_bound(user_var) < 0.0
+            if !is_binary(user_var) &&
+                (!has_lower_bound(user_var) || lower_bound(user_var) < 0.0)
                 error(
                     "VRPSolver error: lower bound of unmapped variables must be nonnegative.",
                 )
             end
-            push!(cols_lbs, lower_bound(user_var))
-            push!(cols_ubs, has_upper_bound(user_var) ? upper_bound(user_var) : Inf)
+            lb = is_binary(user_var) ? 0.0 : lower_bound(user_var)
+            push!(cols_lbs, lb)
+            ub = if is_binary(user_var)
+                1.0
+            elseif has_upper_bound(user_var)
+                upper_bound(user_var)
+            else
+                Inf
+            end
+            push!(cols_ubs, ub)
             push!(cols_names, name(user_var))
             push!(cols_uservar, user_var)
             push!(cols_costs, get(obj_terms, user_var, 0.0))
             push!(
                 cols_types,
-                if is_integer(user_var)
+                if is_integer(user_var) || is_binary(user_var)
                     'I'
                 else
                     'C'
@@ -1856,7 +1865,7 @@ function extract_optimizer_cols_info(user_model::VrpModel)
                 push!(cols_costs, get(obj_terms, user_var, 0.0))
                 push!(
                     cols_types,
-                    if is_integer(user_var)
+                    if is_integer(user_var) || is_binary(user_var)
                         'I'
                     else
                         'C'
@@ -1985,7 +1994,7 @@ function has_integer_objective(user_model::VrpModel, optimizer_cols_info::Optimi
         end
         # checking if unmapped variables are integer
         if optimizer_cols_info.uservar_to_problem_type[user_var] == :DW_MASTER &&
-            !is_integer(user_var)
+            !(is_integer(user_var) || is_binary(user_var))
             return false
         end
     end
@@ -2836,7 +2845,8 @@ function copy_jump_model(original::JuMP.Model, optimizer_cols_info::OptimizerCol
             base_name = name(orig_uservar),
             lower_bound = has_lower_bound(orig_uservar) ? lower_bound(orig_uservar) : -Inf,
             upper_bound = has_upper_bound(orig_uservar) ? upper_bound(orig_uservar) : Inf,
-            integer = is_integer(orig_uservar)
+            integer = is_integer(orig_uservar),
+            binary = is_binary(orig_uservar)
         )
     end
 
