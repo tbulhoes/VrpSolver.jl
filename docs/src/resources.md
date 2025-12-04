@@ -20,7 +20,7 @@ Main resources should be disposable.
 
 ## Binary x Non-binary
 
-A resource is binary if its accumulated consumption can only be `0` or `1`. Sets of secondary binary resources of the same type (disposable or not disposable) are implemented in a special way, being represented as bitsets in the labels. This greatly decreases the time spent for dominance checks between labels.
+A resource is binary if its accumulated consumption can only be `0` or `1`. Sets of secondary binary resources of the same type are implemented in a special way, being represented as bitsets in the labels. This greatly decreases the time spent for dominance checks between labels. Binary resources cannot be disposable.
 
 Currently, all binary resources must be secondary in VRPSolver and all consumptions must be `-1`, `0` or `1`, and all intervals `[0,0]`, `[0,1]` or `[1,1]`. Moreover, non-disposable binary resources cannot have the interval `[0,1]` set for the node $v_{\mathrm{sink}}^k$ of a graph $G^k$.
 

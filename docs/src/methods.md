@@ -162,15 +162,3 @@ get_complete_formulation
 ```@docs
 print_enum_paths
 ```
-
-```@docs
-set_vertex_custom_res_params!
-```
-
-```@docs
-set_arc_custom_res_params!
-```
-
-```@docs
-set_const_custom_res_params!
-```

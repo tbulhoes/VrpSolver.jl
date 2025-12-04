@@ -740,27 +740,27 @@ function set_arc_resource_bounds!(graph::VrpGraph, arc_id::Int, res_id::Int, lb,
     set_arc_resource_bounds!(graph, arc_id, res_id, Float64(lb), Float64(ub))
 end
 
-"""
-    set_arc_custom_res_params!(graph::VrpGraph, arc_id::Int, res_id::Int, value::Union{Int,Float64})
+# """
+#     set_arc_custom_res_params!(graph::VrpGraph, arc_id::Int, res_id::Int, value::Union{Int,Float64})
 
-Set the parameters attached to a given arc for a specific customized resource.
+# Set the parameters attached to a given arc for a specific customized resource.
 
-# Arguments
-- `graph::VrpGraph`: graph to be considered
-- `arc_id::Int`: arc to be considered
-- `res_id::Int`: resource id to define parameters 
-- `values::T`: struct containing all parameter values
+# # Arguments
+# - `graph::VrpGraph`: graph to be considered
+# - `arc_id::Int`: arc to be considered
+# - `res_id::Int`: resource id to define parameters 
+# - `values::T`: struct containing all parameter values
 
-# Example
-```julia
-struct MyParams
-    first::Cint
-    secoond::Cdouble
-end
+# # Example
+# ```julia
+# struct MyParams
+#     first::Cint
+#     secoond::Cdouble
+# end
 
-set_arc_custom_res_params!(graph, 3, 1, MyParams(4, 2.5)) # set the parameters values 4 and 2.5 for the resource 1 when passing by the arc 3 
-```
-"""
+# set_arc_custom_res_params!(graph, 3, 1, MyParams(4, 2.5)) # set the parameters values 4 and 2.5 for the resource 1 when passing by the arc 3 
+# ```
+# """
 function set_arc_custom_res_params!(
     graph::VrpGraph, arc_id::Int, res_id::Int, value::T
 ) where {T}
@@ -770,19 +770,19 @@ function set_arc_custom_res_params!(
     graph.arcs[arc_id].custom_data[res_id] = value
 end
 
-"""
-    set_vertex_custom_res_params!(graph::VrpGraph, vertex::Int, res_id::Int, value::T)
+# """
+#     set_vertex_custom_res_params!(graph::VrpGraph, vertex::Int, res_id::Int, value::T)
 
-Set the parameters attached to a given vertex for a specific customized resource.
+# Set the parameters attached to a given vertex for a specific customized resource.
 
-Defining the interval ``[lb,ub]`` for res_id at vertex is equivalent to defining the same interval for every incoming arc of vertex.
+# Defining the interval ``[lb,ub]`` for res_id at vertex is equivalent to defining the same interval for every incoming arc of vertex.
 
-# Arguments
-- `graph::VrpGraph`: graph to be considered
-- `vertex::Int`: vertex id in the VrpGraph `graph`.
-- `res_id::Int`: resource id in the VrpGraph `graph`.
-- `values::T`: struct containing all parameter values
-"""
+# # Arguments
+# - `graph::VrpGraph`: graph to be considered
+# - `vertex::Int`: vertex id in the VrpGraph `graph`.
+# - `res_id::Int`: resource id in the VrpGraph `graph`.
+# - `values::T`: struct containing all parameter values
+# """
 function set_vertex_custom_res_params!(
     graph::VrpGraph, vertex::Int, res_id::Int, value::T
 ) where {T}
@@ -796,16 +796,16 @@ function set_vertex_custom_res_params!(
     end
 end
 
-"""
-    set_const_custom_res_params!(graph::VrpGraph, res_id::Int, value::Union{Int,Float64})
+# """
+#     set_const_custom_res_params!(graph::VrpGraph, res_id::Int, value::Union{Int,Float64})
 
-Set the constant parameters for a specific customized resource.
+# Set the constant parameters for a specific customized resource.
 
-# Arguments
-- `graph::VrpGraph`: graph to be considered
-- `res_id::Int`: resource id to define parameters 
-- `values::T`: struct containing all parameter values
-"""
+# # Arguments
+# - `graph::VrpGraph`: graph to be considered
+# - `res_id::Int`: resource id to define parameters 
+# - `values::T`: struct containing all parameter values
+# """
 function set_const_custom_res_params!(graph::VrpGraph, res_id::Int, value::T) where {T}
     !graph.resources[res_id].is_custom &&
         error("VRPSolver error: resource $(res_id) is not customized")
