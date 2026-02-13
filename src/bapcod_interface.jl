@@ -399,94 +399,71 @@ function new_network!(
     return wbcr_new(c_model, sp_bctype, sp_bcid, nb_nodes, nb_es, nb_ps, nb_cs)
 end
 
-function wbcr_new_resource(c_net::Ptr{Cvoid}, res_id::Integer)
-    status = @bcr_ccall("newResource", Cint, (Ptr{Cvoid}, Cint), c_net, Cint(res_id))
+function wbcr_new_standard_resource(
+    c_net::Ptr{Cvoid}, res_id::Integer, disposable::Bool, main::Bool, stepvalue::Float64
+)
+    status = @bcr_ccall(
+        "newStandardResource",
+        Cint,
+        (Ptr{Cvoid}, Cint, UInt8, UInt8, Cdouble),
+        c_net,
+        Cint(res_id),
+        UInt8(disposable),
+        UInt8(main),
+        Cdouble(stepvalue)
+    )
     (status != 1) && error("Cannot create resource $res_id.")
 end
 
-function wbcr_set_as_main_resource(c_net::Ptr{Cvoid}, res_id::Integer, stepvalue::Float64)
-    @bcr_ccall(
-        "setAsMainResource",
-        Cvoid,
-        (Ptr{Cvoid}, Cint, Cdouble),
-        c_net,
-        Cint(res_id),
-        Cdouble(stepvalue)
-    )
-end
-
-function wbcr_set_vertex_consumption_lb(
-    c_net::Ptr{Cvoid}, n_id::Integer, res_id::Integer, lb::Float64
+function wbcr_set_vertex_standard_res_params(
+    c_net::Ptr{Cvoid}, n_id::Integer, res_id::Integer, lb::Float64, ub::Float64
 )
     @bcr_ccall(
-        "setVertexConsumptionLB",
+        "setVertexStandardResParams",
         Cint,
-        (Ptr{Cvoid}, Cint, Cint, Cdouble),
+        (Ptr{Cvoid}, Cint, Cint, Cdouble, Cdouble),
         c_net,
         Cint(n_id),
         Cint(res_id),
-        Cdouble(lb)
-    )
-end
-
-function wbcr_set_vertex_consumption_ub(
-    c_net::Ptr{Cvoid}, n_id::Integer, res_id::Integer, ub::Float64
-)
-    @bcr_ccall(
-        "setVertexConsumptionUB",
-        Cint,
-        (Ptr{Cvoid}, Cint, Cint, Cdouble),
-        c_net,
-        Cint(n_id),
-        Cint(res_id),
+        Cdouble(lb),
         Cdouble(ub)
     )
 end
 
-function wbcr_set_arc_consumption_lb(
-    c_net::Ptr{Cvoid}, arc_id::Integer, res_id::Integer, lb::Float64
+function wbcr_set_arc_standard_res_params(
+    c_net::Ptr{Cvoid},
+    arc_id::Integer,
+    res_id::Integer,
+    lb::Float64,
+    ub::Float64,
+    cons::Float64,
 )
     @bcr_ccall(
-        "setArcConsumptionLB",
+        "setArcStandardResParams",
         Cint,
-        (Ptr{Cvoid}, Cint, Cint, Cdouble),
+        (Ptr{Cvoid}, Cint, Cint, Cdouble, Cdouble, Cdouble),
         c_net,
         Cint(arc_id),
         Cint(res_id),
-        Cdouble(lb)
+        Cdouble(lb),
+        Cdouble(ub),
+        Cdouble(cons)
     )
 end
 
-function wbcr_set_arc_consumption_ub(
-    c_net::Ptr{Cvoid}, arc_id::Integer, res_id::Integer, ub::Float64
+function wbcr_new_custom_resource(
+    c_net::Ptr{Cvoid}, res_id::Integer, c_model::Ptr{Cvoid}, colId::Integer
 )
-    @bcr_ccall(
-        "setArcConsumptionUB",
+    status = @bcr_ccall(
+        "newCustomResource",
         Cint,
-        (Ptr{Cvoid}, Cint, Cint, Cdouble),
-        c_net,
-        Cint(arc_id),
-        Cint(res_id),
-        Cdouble(ub)
-    )
-end
-
-function wbcr_set_as_custom_resource(c_net::Ptr{Cvoid}, res_id::Integer)
-    @bcr_ccall("setAsCustomResource", Cvoid, (Ptr{Cvoid}, Cint), c_net, Cint(res_id))
-end
-
-function wbcr_set_as_cost_resource(
-    c_net::Ptr{Cvoid}, res_id::Integer, c_model::Ptr{Cvoid}, var_col::Int
-)
-    @bcr_ccall(
-        "setAsCostResource",
-        Cvoid,
         (Ptr{Cvoid}, Cint, Ptr{Cvoid}, Cint),
         c_net,
         Cint(res_id),
         c_model,
-        Cint(var_col)
+        Cint(colId)
     )
+    (status != 1) && error("Cannot create resource $res_id.")
 end
 
 function wbcr_set_arc_custom_res_params(
@@ -712,24 +689,6 @@ function wbcr_attach_bcvar_to_arc(
         Cint(var_col),
         Cdouble(coeff)
     )
-end
-
-function wbcr_set_edge_consumption_value(
-    c_net::Ptr{Cvoid}, edge_id::Integer, res_id::Integer, value::Float64
-)
-    @bcr_ccall(
-        "setEdgeConsumptionValue",
-        Cint,
-        (Ptr{Cvoid}, Cint, Cint, Cdouble),
-        c_net,
-        Cint(edge_id),
-        Cint(res_id),
-        Cdouble(value)
-    )
-end
-
-function wbcr_set_as_nondisposable_resource(c_net::Ptr{Cvoid}, res_id::Integer)
-    @bcr_ccall("setAsNonDisposableResource", Cvoid, (Ptr{Cvoid}, Cint), c_net, Cint(res_id))
 end
 
 function wbcr_set_special_as_nondisposable_resource(c_net::Ptr{Cvoid}, res_id::Integer)

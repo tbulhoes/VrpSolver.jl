@@ -1369,30 +1369,23 @@ function generate_pricing_networks(
                         c_net_ptr, resource_id_in_bapcod(resource, graph) - 1
                     )
                 end
+            elseif resource.is_custom
+                colids = get(
+                    optimizer_cols_info.uservar_to_colids, resource.cost_var, Int[]
+                )
+                colid = isempty(colids) ? -1 : colids[1]
+                wbcr_new_custom_resource(c_net_ptr, resource.id - 1, bapcod_model, colid)
+                wbcr_set_const_custom_res_params(
+                    c_net_ptr, resource.id - 1, resource.custom_data
+                )
             else
-                wbcr_new_resource(c_net_ptr, resource.id - 1)
-                if resource.is_custom
-                    wbcr_set_as_custom_resource(c_net_ptr, resource.id - 1)
-                    wbcr_set_const_custom_res_params(
-                        c_net_ptr, resource.id - 1, resource.custom_data
-                    )
-                end
-                if !isnothing(resource.cost_var)
-                    colids = get(
-                        optimizer_cols_info.uservar_to_colids, resource.cost_var, Int[]
-                    )
-                    if !isempty(colids)
-                        wbcr_set_as_cost_resource(
-                            c_net_ptr, resource.id - 1, bapcod_model, colids[1]
-                        )
-                    end
-                end
-                if resource.is_main
-                    wbcr_set_as_main_resource(c_net_ptr, resource.id - 1, 0.0)
-                end
-                if !resource.is_disposable
-                    wbcr_set_as_nondisposable_resource(c_net_ptr, resource.id - 1)
-                end
+                wbcr_new_standard_resource(
+                    c_net_ptr,
+                    resource.id - 1,
+                    resource.is_disposable,
+                    resource.is_main,
+                    resource.step_size,
+                )
             end
             for vertex in graph.vertices
                 if resource.is_binary
@@ -1409,34 +1402,27 @@ function generate_pricing_networks(
                         res_seq_id - 1,
                         vertex.res_bounds[resource.id][2],
                     )
-                else
-                    if !haskey(vertex.res_bounds, resource.id)
-                        wbcr_set_vertex_consumption_lb(
-                            c_net_ptr, vertex.id - 1, resource.id - 1, -1e12
-                        )
-                        wbcr_set_vertex_consumption_ub(
-                            c_net_ptr, vertex.id - 1, resource.id - 1, 1e12
-                        )
-                    else
-                        wbcr_set_vertex_consumption_lb(
-                            c_net_ptr,
-                            vertex.id - 1,
-                            resource.id - 1,
-                            vertex.res_bounds[resource.id][1],
-                        )
-                        wbcr_set_vertex_consumption_ub(
-                            c_net_ptr,
-                            vertex.id - 1,
-                            resource.id - 1,
-                            vertex.res_bounds[resource.id][2],
-                        )
-                    end
+                elseif resource.is_custom
                     if haskey(vertex.custom_data, resource.id)
                         wbcr_set_vertex_custom_res_params(
                             c_net_ptr,
                             vertex.id - 1,
                             resource.id - 1,
                             vertex.custom_data[resource.id],
+                        )
+                    end
+                else
+                    if !haskey(vertex.res_bounds, resource.id)
+                        wbcr_set_vertex_standard_res_params(
+                            c_net_ptr, vertex.id - 1, resource.id - 1, -1e12, 1e12
+                        )
+                    else
+                        wbcr_set_vertex_standard_res_params(
+                            c_net_ptr,
+                            vertex.id - 1,
+                            resource.id - 1,
+                            vertex.res_bounds[resource.id][1],
+                            vertex.res_bounds[resource.id][2],
                         )
                     end
                 end
@@ -1485,25 +1471,7 @@ function generate_pricing_networks(
                         res_seq_id - 1,
                         arc.res_consumption[resource.id],
                     )
-                else
-                    wbcr_set_edge_consumption_value(
-                        c_net_ptr,
-                        arc_bapcod_id,
-                        resource.id - 1,
-                        arc.res_consumption[resource.id],
-                    )
-                    wbcr_set_arc_consumption_lb(
-                        c_net_ptr,
-                        arc_bapcod_id,
-                        resource.id - 1,
-                        arc.res_bounds[resource.id][1],
-                    )
-                    wbcr_set_arc_consumption_ub(
-                        c_net_ptr,
-                        arc_bapcod_id,
-                        resource.id - 1,
-                        arc.res_bounds[resource.id][2],
-                    )
+                elseif resource.is_custom
                     if haskey(arc.custom_data, resource.id)
                         wbcr_set_arc_custom_res_params(
                             c_net_ptr,
@@ -1512,6 +1480,15 @@ function generate_pricing_networks(
                             arc.custom_data[resource.id],
                         )
                     end
+                else
+                    wbcr_set_arc_standard_res_params(
+                        c_net_ptr,
+                        arc_bapcod_id,
+                        resource.id - 1,
+                        arc.res_bounds[resource.id][1],
+                        arc.res_bounds[resource.id][2],
+                        arc.res_consumption[resource.id],
+                    )
                 end
             end
             # adding arc to packing_set
