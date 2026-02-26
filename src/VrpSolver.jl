@@ -1364,11 +1364,9 @@ function generate_pricing_networks(
         #resources and vertices
         for resource in graph.resources
             if resource.is_binary
-                if !resource.is_disposable
-                    wbcr_set_special_as_nondisposable_resource(
-                        c_net_ptr, resource_id_in_bapcod(resource, graph) - 1
-                    )
-                end
+                wbcr_new_special_resource(
+                    c_net_ptr, resource.id - 1, resource.is_disposable
+                )
             elseif resource.is_custom
                 colids = get(
                     optimizer_cols_info.uservar_to_colids, resource.cost_var, Int[]
@@ -1389,18 +1387,12 @@ function generate_pricing_networks(
             end
             for vertex in graph.vertices
                 if resource.is_binary
-                    res_seq_id = resource_id_in_bapcod(resource, graph)
-                    wbcr_set_vertex_special_consumption_lb(
+                    wbcr_set_vertex_special_res_params(
                         c_net_ptr,
                         vertex.id - 1,
-                        res_seq_id - 1,
-                        vertex.res_bounds[resource.id][1],
-                    )
-                    wbcr_set_vertex_special_consumption_ub(
-                        c_net_ptr,
-                        vertex.id - 1,
-                        res_seq_id - 1,
-                        vertex.res_bounds[resource.id][2],
+                        resource.id - 1,
+                        Int(vertex.res_bounds[resource.id][1]),
+                        Int(vertex.res_bounds[resource.id][2]),
                     )
                 elseif resource.is_custom
                     if haskey(vertex.custom_data, resource.id)
@@ -1464,12 +1456,11 @@ function generate_pricing_networks(
             graph.arc_bapcod_id_to_id[arc_bapcod_id] = arc.id
             for resource in graph.resources
                 if resource.is_binary
-                    res_seq_id = resource_id_in_bapcod(resource, graph)
-                    wbcr_set_edge_special_consumption_value(
+                    wbcr_set_arc_special_res_params(
                         c_net_ptr,
                         arc_bapcod_id,
-                        res_seq_id - 1,
-                        arc.res_consumption[resource.id],
+                        resource.id - 1,
+                        Int(arc.res_consumption[resource.id]),
                     )
                 elseif resource.is_custom
                     if haskey(arc.custom_data, resource.id)

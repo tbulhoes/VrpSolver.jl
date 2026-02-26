@@ -399,6 +399,47 @@ function new_network!(
     return wbcr_new(c_model, sp_bctype, sp_bcid, nb_nodes, nb_es, nb_ps, nb_cs)
 end
 
+function wbcr_new_special_resource(c_net::Ptr{Cvoid}, res_id::Integer, disposable::Bool)
+    status = @bcr_ccall(
+        "newBinaryResource",
+        Cint,
+        (Ptr{Cvoid}, Cint, UInt8),
+        c_net,
+        Cint(res_id),
+        UInt8(disposable),
+    )
+    (status != 1) && error("Cannot create resource $res_id.")
+end
+
+function wbcr_set_vertex_special_res_params(
+    c_net::Ptr{Cvoid}, n_id::Integer, res_id::Integer, lb::Integer, ub::Integer
+)
+    @bcr_ccall(
+        "setVertexBinaryResParams",
+        Cint,
+        (Ptr{Cvoid}, Cint, Cint, Cint, Cint),
+        c_net,
+        Cint(n_id),
+        Cint(res_id),
+        Cint(lb),
+        Cint(ub)
+    )
+end
+
+function wbcr_set_arc_special_res_params(
+    c_net::Ptr{Cvoid}, arc_id::Integer, res_id::Integer, cons::Integer
+)
+    @bcr_ccall(
+        "setArcBinaryResParams",
+        Cint,
+        (Ptr{Cvoid}, Cint, Cint, Cint),
+        c_net,
+        Cint(arc_id),
+        Cint(res_id),
+        Cint(cons)
+    )
+end
+
 function wbcr_new_standard_resource(
     c_net::Ptr{Cvoid}, res_id::Integer, disposable::Bool, main::Bool, stepvalue::Float64
 )
@@ -688,54 +729,6 @@ function wbcr_attach_bcvar_to_arc(
         c_model,
         Cint(var_col),
         Cdouble(coeff)
-    )
-end
-
-function wbcr_set_special_as_nondisposable_resource(c_net::Ptr{Cvoid}, res_id::Integer)
-    @bcr_ccall(
-        "setSpecialResourceAsNonDisposable", Cvoid, (Ptr{Cvoid}, Cint), c_net, Cint(res_id)
-    )
-end
-
-function wbcr_set_vertex_special_consumption_lb(
-    c_net::Ptr{Cvoid}, n_id::Integer, res_id::Integer, lb::Float64
-)
-    @bcr_ccall(
-        "setVertexSpecialConsumptionLB",
-        Cint,
-        (Ptr{Cvoid}, Cint, Cint, Cdouble),
-        c_net,
-        Cint(n_id),
-        Cint(res_id),
-        Cdouble(lb)
-    )
-end
-
-function wbcr_set_vertex_special_consumption_ub(
-    c_net::Ptr{Cvoid}, n_id::Integer, res_id::Integer, ub::Float64
-)
-    @bcr_ccall(
-        "setVertexSpecialConsumptionUB",
-        Cint,
-        (Ptr{Cvoid}, Cint, Cint, Cdouble),
-        c_net,
-        Cint(n_id),
-        Cint(res_id),
-        Cdouble(ub)
-    )
-end
-
-function wbcr_set_edge_special_consumption_value(
-    c_net::Ptr{Cvoid}, edge_id::Integer, res_id::Integer, value::Float64
-)
-    @bcr_ccall(
-        "setEdgeSpecialConsumptionValue",
-        Cint,
-        (Ptr{Cvoid}, Cint, Cint, Cdouble),
-        c_net,
-        Cint(edge_id),
-        Cint(res_id),
-        Cdouble(value)
     )
 end
 
