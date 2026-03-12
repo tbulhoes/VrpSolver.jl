@@ -159,7 +159,7 @@ end
 
 struct SpSol
     graph_id::Int
-    multiplicity::Int
+    multiplicity::Float64
     user_vars_in_sol::Dict{JuMP.VariableRef,Float64}
     arc_seq::Vector{VrpArc}
     cost_var_value::Float64
@@ -2137,6 +2137,8 @@ function VrpOptimizer(
         "1",      # FIXME: Covering cuts makes VrpSolver crash
         "-t",
         baptreedot,
+        "--ComputeDissagregateSpSol",
+        "false",
     ],
 )
     optimizer_cols_info = extract_optimizer_cols_info(user_model)
@@ -2324,7 +2326,7 @@ function register_solutions(optimizer::VrpOptimizer, bapcodsol; from_model = tru
         spsol = SpSol(
             graph.id,
             mult,
-            get_path_uservar_map(arcs_ids, graph),
+            get_path_uservar_map(arcs_ids, graph, mult),
             [graph.arcs[arc_id] for arc_id in arcs_ids],
             cost_var_value,
             cost_var,
@@ -2478,7 +2480,7 @@ function get_value(optimizer::VrpOptimizer, path_id::Int)
     )
     !(1 <= path_id <= length(optimizer.spsols_in_sol)) &&
         error("VrpSolver error: invalid path id")
-    return optimizer.spsols_in_sol[path_id][1]
+    return optimizer.spsols_in_sol[path_id].multiplicity
 end
 
 """
@@ -2835,15 +2837,17 @@ function copy_jump_model(original::JuMP.Model, optimizer_cols_info::OptimizerCol
     return copied_model, orig_to_copied_uservar
 end
 
-function get_path_uservar_map(path::Vector{Int}, graph::VrpGraph)
+function get_path_uservar_map(
+    path::Vector{Int}, graph::VrpGraph, multiplicity::Float64 = 1.0
+)
     uservar_map = Dict{JuMP.VariableRef,Float64}()
     for arc_id in path
         arc = graph.arcs[arc_id]
         for (uservar, coef) in arc.vars
             if !haskey(uservar_map, uservar)
-                uservar_map[uservar] = coef
+                uservar_map[uservar] = multiplicity * coef
             else
-                uservar_map[uservar] += coef
+                uservar_map[uservar] += multiplicity * coef
             end
         end
     end
