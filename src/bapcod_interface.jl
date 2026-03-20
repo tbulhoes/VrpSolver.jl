@@ -886,9 +886,9 @@ function c_getTrueCost(solution::Ptr{Cvoid})
 end
 
 function c_getMultiplicity(solution::Ptr{Cvoid})
-    mult = Ref{Cdouble}(0)
-    @bcsol_ccall("getMultiplicity", Cint, (Ptr{Cvoid}, Ref{Cdouble}), solution, mult)
-    return Float64(mult[])
+    mult = Ref{Cint}(0)
+    @bcsol_ccall("getMultiplicity", Cint, (Ptr{Cvoid}, Ref{Cint}), solution, mult)
+    return Int(mult[])
 end
 
 function c_getProblemFirstId(solution::Ptr{Cvoid})
