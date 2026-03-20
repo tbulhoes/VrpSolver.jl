@@ -2510,7 +2510,7 @@ function get_value(optimizer::VrpOptimizer, path_id::Int)
     )
     !(1 <= path_id <= length(optimizer.spsols_in_sol)) &&
         error("VrpSolver error: invalid path id")
-    return optimizer.spsols_in_sol[path_id][1]
+    return optimizer.spsols_in_sol[path_id].multiplicity
 end
 
 """
