@@ -651,6 +651,17 @@ function wbcr_add_vertex_to_covering_set(c_net::Ptr{Cvoid}, n_id::Integer, cs_id
     )
 end
 
+function wbcr_add_edge_to_covering_set(c_net::Ptr{Cvoid}, edge_id::Integer, cs_id::Integer)
+    status = @bcr_ccall(
+        "addEdgeToCoveringSet",
+        Cint,
+        (Ptr{Cvoid}, Cint, Cint),
+        c_net,
+        Cint(edge_id),
+        Cint(cs_id)
+    )
+end
+
 function wbc_add_generic_lim_mem_one_cut(c_model::Ptr{Cvoid})
     status = @bcr_ccall("addGenericLimMemOneCut", Cint, (Ptr{Cvoid},), c_model)
     (status != 1) && error("Cannot add the generic lim-mem-one-rank cut.")

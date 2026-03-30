@@ -55,8 +55,8 @@ export add_resource!,
 mutable struct VrpVertex
     user_id::Int
     id::Int
-    packing_set::Int
-    elem_set::Int
+    packing_sets::Vector{Int}
+    elem_sets::Vector{Int}
     res_bounds::Dict{Int,Tuple{Float64,Float64}} #only for binary resources
     ng_set::Array{Int,1}
     custom_data::Dict{Int,Any}
@@ -66,8 +66,8 @@ mutable struct VrpArc
     id::Int
     tail::Int
     head::Int
-    packing_set::Int
-    elem_set::Int
+    packing_sets::Vector{Int}
+    elem_sets::Vector{Int}
     res_consumption::Array{Float64,1}
     res_bounds::Dict{Int,Tuple{Float64,Float64}} #only for non-binary resources
     vars::Array{Tuple{JuMP.VariableRef,Float64},1}
@@ -292,8 +292,9 @@ function VrpGraph(
     standalone_filename::String = "",
 )
     vertices = [
-        VrpVertex(nodes[i], i, -1, -1, Dict{Float64,Float64}(), Int[], Dict{Int,Any}()) for
-        i in 1:length(nodes)
+        VrpVertex(
+            nodes[i], i, Int[], Int[], Dict{Float64,Float64}(), Int[], Dict{Int,Any}()
+        ) for i in 1:length(nodes)
     ]
     user_vertex_id_map = Dict{Int,Int}()
     for i in 1:length(nodes)
@@ -310,8 +311,8 @@ function VrpGraph(
             VrpVertex(
                 maximum(nodes) + 1,
                 network_sink,
-                -1,
-                -1,
+                Int[],
+                Int[],
                 Dict{Int,Tuple{Float64,Float64}}(),
                 Int[],
                 Dict{Int,Any}(),
@@ -641,8 +642,8 @@ function add_arc!(
             length(graph.arcs) + 1,
             graph.user_vertex_id_map[tail],
             graph.sink_id,
-            -1,
-            -1,
+            Int[],
+            Int[],
             default_consumptions(graph),
             default_resbounds(graph),
             vars,
@@ -654,8 +655,8 @@ function add_arc!(
             length(graph.arcs) + 1,
             graph.user_vertex_id_map[tail],
             graph.user_vertex_id_map[head],
-            -1,
-            -1,
+            Int[],
+            Int[],
             default_consumptions(graph),
             default_resbounds(graph),
             vars,
@@ -848,11 +849,11 @@ function reset_packing_sets(user_model::VrpModel)
     user_model.packing_sets_type = NoSet
     for graph in user_model.graphs
         for vertex in graph.vertices
-            vertex.packing_set = -1
+            empty!(vertex.packing_sets)
             empty!(vertex.ng_set)
         end
         for arc in graph.arcs
-            arc.packing_set = -1
+            empty!(arc.packing_sets)
             empty!(arc.ng_set)
         end
     end
@@ -864,11 +865,11 @@ function reset_elem_sets(user_model::VrpModel)
         empty!(graph.elem_sets)
         graph.es_dist_matrix = nothing
         for vertex in graph.vertices
-            vertex.elem_set = -1
+            empty!(vertex.elem_sets)
             empty!(vertex.ng_set)
         end
         for arc in graph.arcs
-            arc.elem_set = -1
+            empty!(arc.elem_sets)
             empty!(arc.ng_set)
         end
     end
@@ -879,23 +880,20 @@ function add_arc_to_packing_set(
 )
     check_id(arc_id, 1, length(graph.arcs))
     check_id(packing_set_id, 1, length(model.packing_sets))
-    (graph.arcs[arc_id].packing_set != -1) &&
-        error("VRPSolver error: an arc cannot belong to more than 1 packing set")
-    graph.arcs[arc_id].packing_set = packing_set_id
-    (graph.arcs[arc_id].elem_set != -1) &&
-        error("VRPSolver error: an arc cannot belong to more than 1 elementarity set")
+    (packing_set_id in graph.arcs[arc_id].packing_sets) &&
+        error("VRPSolver error: an arc cannot be added more than once to a packing set")
+    push!(graph.arcs[arc_id].packing_sets, packing_set_id)
 end
 
 function add_arc_to_elementarity_set(
     model::VrpModel, graph::VrpGraph, arc_id::Int, es_id::Int
 )
     check_id(arc_id, 1, length(graph.arcs))
-    check_id(es_id, 1, length(graph.elem_sets) + length(model.packing_sets))
-    (graph.arcs[arc_id].elem_set != -1) &&
-        error("VRPSolver error: an arc cannot belong to more than 1 elementarity set")
-    (graph.arcs[arc_id].packing_set != -1) &&
-        error("VRPSolver error: an arc cannot belong to more than 1 elementarity set")
-    graph.arcs[arc_id].elem_set = es_id
+    check_id(es_id, 1, length(graph.elem_sets))
+    (es_id in graph.arcs[arc_id].elems_sets) && error(
+        "VRPSolver error: an arc cannot be added more than once to an elementarity set"
+    )
+    push!(graph.arcs[arc_id].elem_sets, es_id)
 end
 
 """
@@ -975,24 +973,21 @@ function add_vertex_to_packing_set(
     check_vertex_id(graph, vertex_id)
     check_id(packing_set_id, 1, length(model.packing_sets))
     vertexAlgId = graph.user_vertex_id_map[vertex_id]
-    (graph.vertices[vertexAlgId].packing_set != -1) &&
-        error("VRPSolver error: a vertex cannot belong to more than 1 packing set")
-    graph.vertices[vertexAlgId].packing_set = packing_set_id
-    (graph.vertices[vertexAlgId].elem_set != -1) &&
-        error("VRPSolver error: a vertex cannot belong to more than 1 elementarity set")
+    (packing_set_id in graph.vertices[vertexAlgId].packing_sets) &&
+        error("VRPSolver error: a vertex cannot be added more than once to a packing set")
+    push!(graph.vertices[vertexAlgId].packing_sets, packing_set_id)
 end
 
 function add_vertex_to_elem_set(
     model::VrpModel, graph::VrpGraph, vertex_id::Int, es_id::Int
 )
     check_vertex_id(graph, vertex_id)
-    check_id(es_id, 1, length(graph.elem_sets) + length(model.packing_sets))
+    check_id(es_id, 1, length(graph.elem_sets))
     vertexAlgId = graph.user_vertex_id_map[vertex_id]
-    (graph.vertices[vertexAlgId].elem_set != -1) &&
-        error("VRPSolver error: a vertex cannot belong to more than 1 elementarity set")
-    graph.vertices[vertexAlgId].elem_set = es_id
-    (graph.vertices[vertexAlgId].packing_set != -1) &&
-        error("VRPSolver error: a vertex cannot belong to more than 1 elementarity set")
+    (es_id in graph.vertices[vertexAlgId].elem_sets) && error(
+        "VRPSolver error: a vertex cannot be added more than once to an elementarity set",
+    )
+    push!(graph.vertices[vertexAlgId].elem_sets, es_id)
 end
 
 """
@@ -1000,8 +995,8 @@ end
 
 Define a collection of packing sets on vertices. For each defined packing set, VRPSolver automatically will create an equivalent elementarity set on vertices.
 
-The collection must be a set of mutually disjoint subsets of vertices. Not all vertices need to belong to some packing set.
-The index of a packing set in the array defines its packing set id.
+The collection must be a set of subsets of vertices. The subsets are not necessarily disjoint. 
+Not all vertices need to belong to some packing set. The index of a packing set in the array defines its packing set id.
 
 # Examples
 ```julia
@@ -1031,6 +1026,8 @@ function set_vertex_packing_sets!(
             add_vertex_to_packing_set(user_model, graph, vertex_id, ps_id)
         end
     end
+
+    return nothing
 
     # function to compute the packing set pair connected by the arc of a pair
     # (graph, arc) where vectices not associated to packing sets are assigned to
@@ -1423,21 +1420,16 @@ function generate_pricing_networks(
 
         #adding vertices to packing and elem sets
         for vertex in graph.vertices
-            if vertex.packing_set != -1
-                wbcr_add_vertex_to_packing_set(
-                    c_net_ptr, vertex.id - 1, vertex.packing_set - 1
-                )
-                wbcr_attach_elementarity_set_to_node(
-                    c_net_ptr, vertex.id - 1, vertex.packing_set - 1
-                )
+            for ps_id in vertex.packing_sets
+                wbcr_add_vertex_to_packing_set(c_net_ptr, vertex.id - 1, ps_id - 1)
+                wbcr_attach_elementarity_set_to_node(c_net_ptr, vertex.id - 1, ps_id - 1)
                 if user_model.define_covering_sets
-                    wbcr_add_vertex_to_covering_set(
-                        c_net_ptr, vertex.id - 1, vertex.packing_set - 1
-                    )
+                    wbcr_add_vertex_to_covering_set(c_net_ptr, vertex.id - 1, ps_id - 1)
                 end
-            elseif vertex.elem_set != -1
+            end
+            for es_id in vertex.elem_sets
                 wbcr_attach_elementarity_set_to_node(
-                    c_net_ptr, vertex.id - 1, vertex.elem_set - 1
+                    c_net_ptr, vertex.id - 1, nbPackSets + es_id - 1
                 )
             end
             #defining the neighbourhood of the vertex
@@ -1483,14 +1475,16 @@ function generate_pricing_networks(
                 end
             end
             # adding arc to packing_set
-            if arc.packing_set != -1
-                wbcr_add_edge_to_packing_set(c_net_ptr, arc_bapcod_id, arc.packing_set - 1)
+            for ps_id in arc.packing_sets
+                wbcr_add_edge_to_packing_set(c_net_ptr, arc_bapcod_id, ps_id - 1)
+                wbcr_attach_elementarity_set_to_edge(c_net_ptr, arc_bapcod_id, ps_id - 1)
+                if user_model.define_covering_sets
+                    wbcr_add_edge_to_covering_set(c_net_ptr, arc_bapcod_id, ps_id - 1)
+                end
+            end
+            for es_id in arc.elem_sets
                 wbcr_attach_elementarity_set_to_edge(
-                    c_net_ptr, arc_bapcod_id, arc.packing_set - 1
-                )
-            elseif arc.elem_set != -1
-                wbcr_attach_elementarity_set_to_edge(
-                    c_net_ptr, arc_bapcod_id, nbPackSets + arc.elem_set - 1
+                    c_net_ptr, arc_bapcod_id, nbPackSets + es_id - 1
                 )
             end
             # defining the neighbourhood of the arc
@@ -1599,8 +1593,8 @@ function add_capacity_cut_separator!(
     end
 
     # create and map variables to all uncovered arcs connecting packing set pairs
+    id_demands = [0 for i in 1:length(model.packing_sets)]
     if !isempty(model.arcs_by_packing_set_pairs)
-        id_demands = [0 for i in 1:length(model.packing_sets)]
         for (ps_set, d) in demands
             ps_id = findall(x -> x == ps_set, model.packing_sets)
             id_demands[ps_id[1]] = Int(d)
