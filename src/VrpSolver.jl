@@ -236,6 +236,41 @@ function VrpModel()
     )
 end
 
+function using_resource_consumption_branching(model::VrpModel)
+    return haskey(model.branching_priorities, "_res_cons_branching_")
+end
+
+function using_ryan_and_foster_branching(model::VrpModel)
+    return haskey(model.branching_priorities, "_ryanfoster_branching_")
+end
+
+function using_strong_kpath_cuts(model::VrpModel)
+    return !isempty(model.strongkpath_cuts_info)
+end
+
+function has_multiple_sets_per_element(model::VrpModel)
+    for graph in model.graphs
+        for vertex in graph.vertices
+            if length(vertex.elem_sets) > 1 || length(vertex.packing_sets) > 1
+                return true
+            end
+        end
+        for arc in graph.arcs
+            if length(arc.elem_sets) > 1 || length(arc.packing_sets) > 1
+                return true
+            end
+        end
+    end
+    return false
+end
+
+function has_custom_resource(model::VrpModel)
+    for graph in model.graphs
+        count(r -> r.is_custom, graph.resources) > 0 && return true
+    end
+    return false
+end
+
 """
     enable_rank1_cuts!(model::VrpModel)
 
@@ -420,7 +455,10 @@ function add_resource!(
     binary && disposable && error("VRPSolver error: binary resource cannot be disposable")
     custom &&
         (main || binary) &&
-        error("VRPSolver error: customized resource cannot be main or binary")
+        error("VRPSolver error: custom resource cannot be main or binary")
+    custom &&
+        (count(r -> r.is_custom, graph.resources) > 0) &&
+        error("VRPSolver error: only one custom resource can be defined")
 
     res_id = length(graph.resources) + 1
     push!(
@@ -2099,6 +2137,47 @@ function set_branching_priorities_in_optimizer(
     end
 end
 
+function should_use_meta_solver(user_model::VrpModel)
+    features_A = [
+        "Strong k-path cuts", "Ryan and Foster branching", "Resource consumption branching"
+    ]
+    features_B = ["Custom resource", "Multiple sets per vertex/arc"]
+
+    found_A = []
+    if using_resource_consumption_branching(user_model)
+        push!(found_A, "Resource consumption branching")
+    end
+    if using_ryan_and_foster_branching(user_model)
+        push!(found_A, "Ryan and Foster branching")
+    end
+    if using_strong_kpath_cuts(user_model)
+        push!(found_A, "Strong k-path cuts")
+    end
+
+    found_B = []
+    if has_custom_resource(user_model)
+        push!(found_B, "Custom resource")
+    end
+    if has_multiple_sets_per_element(user_model)
+        push!(found_B, "Multiple sets per vertex/arc")
+    end
+
+    if !isempty(found_A) && !isempty(found_B)
+        error("""
+VRPSolver error: Model cannot include features from both sets simultaneously.
+This is a current limitation of VRPSolver and will be addressed in future versions.
+
+Set A: $(join(features_A, ", "))
+Set B: $(join(features_B, ", "))
+
+Features from Set A found in your model: $(join(found_A, ", "))
+Features from Set B found in your model: $(join(found_B, ", "))
+""")
+    end
+
+    return isempty(found_A)
+end
+
 """
     VrpOptimizer(user_model::VrpModel, param_file::String, instance_name = ""; baptreedot="BaPTree.dot")
 
@@ -2137,6 +2216,9 @@ function VrpOptimizer(
 )
     optimizer_cols_info = extract_optimizer_cols_info(user_model)
     integer_objective = has_integer_objective(user_model, optimizer_cols_info)
+    use_meta_solver = should_use_meta_solver(user_model)
+    push!(fixed_params, "--RCSPuseMetaSolver")
+    push!(fixed_params, use_meta_solver ? "1" : "0")
 
     bapcod_model_ptr = new!(
         param_file,
