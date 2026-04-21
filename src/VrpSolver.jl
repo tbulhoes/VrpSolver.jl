@@ -248,7 +248,7 @@ function using_strong_kpath_cuts(model::VrpModel)
     return !isempty(model.strongkpath_cuts_info)
 end
 
-function has_multiple_sets_per_element(model::VrpModel)
+function has_overlapping_sets(model::VrpModel)
     for graph in model.graphs
         for vertex in graph.vertices
             if length(vertex.elem_sets) > 1 || length(vertex.packing_sets) > 1
@@ -956,8 +956,19 @@ function set_arc_packing_sets!(
     user_model::VrpModel, collection::Array{Array{Tuple{VrpGraph,Int},1},1}
 )
     if user_model.elem_sets_type != NoSet
-        error("VRPSolver error: Packing sets cannot be defined after elementarity sets")
+        error("VRPSolver error: Packing sets must be defined before elementarity sets")
     end
+    if !isempty(user_model.cap_cuts_info)
+        error(
+            "VRPSolver error: Packing sets must be defined before capacity cuts separators"
+        )
+    end
+    if !isempty(user_model.strongkpath_cuts_info)
+        error(
+            "VRPSolver error: Packing sets must be defined before capacity cuts separators"
+        )
+    end
+
     reset_packing_sets(user_model)
     user_model.packing_sets = collection
     user_model.packing_sets_type = ArcSet
@@ -1052,8 +1063,19 @@ function set_vertex_packing_sets!(
     define_covering_sets::Bool = false,
 )
     if user_model.elem_sets_type != NoSet
-        error("VRPSolver error: Packing sets cannot be defined after elementarity sets")
+        error("VRPSolver error:  Packing sets must be defined before elementarity sets")
     end
+    if !isempty(user_model.cap_cuts_info)
+        error(
+            "VRPSolver error: Packing sets must be defined before capacity cuts separators"
+        )
+    end
+    if !isempty(user_model.strongkpath_cuts_info)
+        error(
+            "VRPSolver error: Packing sets must be defined before capacity cuts separators"
+        )
+    end
+
     reset_packing_sets(user_model)
     user_model.packing_sets = collection
     user_model.packing_sets_type = VertexSet
@@ -1065,7 +1087,7 @@ function set_vertex_packing_sets!(
         end
     end
 
-    return nothing
+    has_overlapping_sets(user_model) && return nothing
 
     # function to compute the packing set pair connected by the arc of a pair
     # (graph, arc) where vectices not associated to packing sets are assigned to
@@ -1073,10 +1095,16 @@ function set_vertex_packing_sets!(
     function get_packing_set_pair(gr_arc::Tuple{VrpGraph,VrpArc})::Tuple{Int,Int}
         graph = gr_arc[1]
         arc = gr_arc[2]
-        head = graph.vertices[arc.head].packing_set
-        head = (head < 1) ? n + 1 : head
-        tail = graph.vertices[arc.tail].packing_set
-        tail = (tail < 1) ? n + 1 : tail
+        head = if !isempty(graph.vertices[arc.head].packing_sets)
+            first(graph.vertices[arc.head].packing_sets)
+        else
+            n + 1
+        end
+        tail = if !isempty(graph.vertices[arc.tail].packing_sets)
+            first(graph.vertices[arc.tail].packing_sets)
+        else
+            n + 1
+        end
         if head < tail
             return head, tail
         else
@@ -1086,7 +1114,7 @@ function set_vertex_packing_sets!(
 
     # build data structures to access lists of arcs by packing set pairs
     # and by mapped variables (to be used next)
-    user_model.arcs_by_packing_set_pairs = [Tuple{VrpGraph,VrpArc}[] for i in 1:n, j in 1:n]
+    user_model.arcs_by_packing_set_pairs = [Tuple{VrpGraph,VrpArc}[] for _ in 1:n, _ in 1:n]
     mapped_arcs_by_vars = Dict{JuMP.VariableRef,Array{Tuple{VrpGraph,VrpArc},1}}()
     for graph in user_model.graphs
         for arc in graph.arcs
@@ -1094,7 +1122,7 @@ function set_vertex_packing_sets!(
             if tail <= n
                 push!(user_model.arcs_by_packing_set_pairs[head, tail], (graph, arc))
             end
-            for (var, val) in arc.vars
+            for (var, _) in arc.vars
                 if haskey(mapped_arcs_by_vars, var)
                     push!(mapped_arcs_by_vars[var], (graph, arc))
                 else
@@ -1623,15 +1651,19 @@ function add_capacity_cut_separator!(
     capacity::Float64,
     two_path_cuts_res_id::Int = -1,
 )
-    for (ps_set, d) in demands
+    has_overlapping_sets(model) && error(
+        "VRPSolver error: capacity cut separators are incompatible with overlapping (packing/elementarity) sets",
+    )
+
+    for (ps_set, _) in demands
         !(ps_set in model.packing_sets) && error(
             "VRPSolver error: collection that is not a packing set was used in a capacity cut separator." *
-            " Only the packing set collections can be used for add_capacity_cut_separator",
+            " Only the packing set collections can be used for add_capacity_cut_separator!",
         )
     end
 
     # create and map variables to all uncovered arcs connecting packing set pairs
-    id_demands = [0 for i in 1:length(model.packing_sets)]
+    id_demands = [0 for _ in 1:length(model.packing_sets)]
     if !isempty(model.arcs_by_packing_set_pairs)
         for (ps_set, d) in demands
             ps_id = findall(x -> x == ps_set, model.packing_sets)
@@ -1716,16 +1748,20 @@ function add_strongkpath_cut_separator!(
     for (ps_set, _) in demands
         !(ps_set in model.packing_sets) && error(
             "VRPSolver error: collection that is not a packing set was used in a strong k-path cut separator." *
-            " Only the packing set collections can be used for add_strongkpath_cut_separator",
+            " Only the packing set collections can be used for add_strongkpath_cut_separator!",
         )
     end
+
+    has_overlapping_sets(model) && error(
+        "VRPSolver error: strong k-path cut separators are incompatible with overlapping (packing/elementarity) sets",
+    )
 
     # need to define covering sets for strong k-path cuts
     model.define_covering_sets = true
 
     # create and map variables to all uncovered arcs connecting packing set pairs
+    id_demands = [0 for i in 1:length(model.packing_sets)]
     if !isempty(model.arcs_by_packing_set_pairs)
-        id_demands = [0 for i in 1:length(model.packing_sets)]
         for (ps_set, d) in demands
             ps_id = findall(x -> x == ps_set, model.packing_sets)
             id_demands[ps_id[1]] = Int(d)
@@ -2141,7 +2177,7 @@ function should_use_meta_solver(user_model::VrpModel)
     features_A = [
         "Strong k-path cuts", "Ryan and Foster branching", "Resource consumption branching"
     ]
-    features_B = ["Custom resource", "Multiple sets per vertex/arc"]
+    features_B = ["Custom resource", "Overlapping (packing/elementarity) sets"]
 
     found_A = []
     if using_resource_consumption_branching(user_model)
@@ -2158,8 +2194,8 @@ function should_use_meta_solver(user_model::VrpModel)
     if has_custom_resource(user_model)
         push!(found_B, "Custom resource")
     end
-    if has_multiple_sets_per_element(user_model)
-        push!(found_B, "Multiple sets per vertex/arc")
+    if has_overlapping_sets(user_model)
+        push!(found_B, "Overlapping (packing/elementarity) sets")
     end
 
     if !isempty(found_A) && !isempty(found_B)
