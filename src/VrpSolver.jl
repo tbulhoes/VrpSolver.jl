@@ -1353,11 +1353,27 @@ function define_elementarity_sets_distance_matrix!(
     model::VrpModel, graph::VrpGraph, matrix::Array{Array{Float64,1},1}
 )
     n = length(model.packing_sets) + length(graph.elem_sets)
-    size(matrix, 1) != n && error("VRPSolver error: wrong matrix dimension")
+    size(matrix, 1) != n && error("VRPSolver error: invalid matrix dimension")
     for i in 1:n
-        size(matrix[i], 1) != n && error("VRPSolver error: wrong matrix dimension")
+        size(matrix[i], 1) != n && error("VRPSolver error: invalid matrix dimension")
     end
     graph.es_dist_matrix = matrix
+end
+
+# checks if a resource var is mapped to an arc
+function check_resources_vars(user_model::VrpModel)
+    resources_vars = Set(
+        res.cost_var for graph in user_model.graphs for
+        res in graph.resources if !isnothing(res.cost_var)
+    )
+    for graph in user_model.graphs
+        for arc in graph.arcs
+            if any(var_and_coeff -> (var_and_coeff[1] in resources_vars), arc.vars)
+                error("VRPSolver error: resource var cannot be mapped to arcs")
+            end
+        end
+    end
+    return nothing
 end
 
 function extract_user_var_to_graphs(user_model::VrpModel)
@@ -1832,6 +1848,7 @@ function get_obj_terms(jump_model::Model)
 end
 
 function extract_optimizer_cols_info(user_model::VrpModel)
+    check_resources_vars(user_model)
     user_var_to_graphs = extract_user_var_to_graphs(user_model)
     user_form = user_model.formulation
     uservar_to_colids = Dict{JuMP.VariableRef,Vector{Int}}()
