@@ -750,6 +750,22 @@ function _set_branching_priorities_in_optimizer(
     end
 end
 
+# user_var must be a mapped or a resource variable
+function _get_sp_var_value(
+    optimizer::VrpOptimizer, bapcod_model, user_var::JuMP.VariableRef, bapcod_spsol
+)
+    optimizer_cols_info = optimizer.optimizer_cols_info
+    subproblem_id = Int(c_getProblemFirstId(bapcod_spsol))
+
+    var_value = 0.0
+    for colid in optimizer_cols_info.uservar_to_colids[user_var]
+        if optimizer_cols_info.cols_problems[colid + 1][2] == subproblem_id
+            var_value += c_getValueOfVar(bapcod_model, bapcod_spsol, colid)
+        end
+    end
+    return var_value
+end
+
 function _register_solutions(optimizer::VrpOptimizer, bapcodsol; from_model = true)
     bapcod_model = optimizer.bapcod_model
     user_vars = all_variables(optimizer.user_model.formulation)
@@ -791,8 +807,10 @@ function _register_solutions(optimizer::VrpOptimizer, bapcodsol; from_model = tr
         cost_var::Union{JuMP.VariableRef,Nothing} = nothing
         for res in graph.resources
             if !isnothing(res.cost_var)
-                cost_var_value = c_getTrueCost(bapcodsol)
                 cost_var = res.cost_var
+                cost_var_value = _get_sp_var_value(
+                    optimizer, bapcod_model, cost_var, bapcodsol
+                )
                 break
             end
         end
@@ -811,12 +829,9 @@ function _register_solutions(optimizer::VrpOptimizer, bapcodsol; from_model = tr
                 if optimizer_cols_info.uservar_to_problem_type[user_var] == :DW_MASTER
                     continue
                 end
-                user_var_val = 0.0
-                for colid in optimizer_cols_info.uservar_to_colids[user_var]
-                    if optimizer_cols_info.cols_problems[colid + 1][2] == subproblem_id
-                        user_var_val += c_getValueOfVar(bapcod_model, bapcodsol, colid)
-                    end
-                end
+                user_var_val = _get_sp_var_value(
+                    optimizer, bapcod_model, user_var, bapcodsol
+                )
                 if user_var_val > 0
                     spsol.user_vars_in_sol[user_var] = user_var_val
                 end
@@ -1047,8 +1062,17 @@ function get_enum_paths(user_model::VrpModel, paramfile::String)
     status = c_next(bcsol)
     while status == 1
         graph_id = c_getProblemFirstId(bcsol) + 1
+        graph = user_model.graphs[graph_id]
         bapcodarcids = c_getArcs(bcsol)
-        cost_var_value = c_getTrueCost(bcsol)
+        cost_var_value = 0.0
+        for res in graph.resources
+            if !isnothing(res.cost_var)
+                cost_var_value = _get_sp_var_value(
+                    optimizer, optimizer.bapcod_model, res.cost_var, bcsol
+                )
+                break
+            end
+        end
         graph = user_model.graphs[graph_id]
         path = Int[]
         for bid in bapcodarcids
