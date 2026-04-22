@@ -817,7 +817,7 @@ function _register_solutions(optimizer::VrpOptimizer, bapcodsol; from_model = tr
         spsol = SpSol(
             graph.id,
             mult,
-            _get_path_uservar_map(arcs_ids, graph, mult),
+            _get_path_uservar_map(arcs_ids, graph),
             [graph.arcs[arc_id] for arc_id in arcs_ids],
             cost_var_value,
             cost_var,
@@ -931,7 +931,7 @@ end
 """
     get_value(optimizer::VrpOptimizer, user_var::JuMP.VariableRef, path_id::Int)
 
-Get the value for a decision variable due to a single copy of a specific path. This function cannot be called
+Get the value for a decision variable due to a specific path of the solution. This function cannot be called
 from a cut callback as VrpSolver only supports robust cuts.
 
 `path_id` shoul be a value between 1 and the number of positive paths.
@@ -951,7 +951,7 @@ function _get_value(optimizer::VrpOptimizer, user_var::JuMP.VariableRef, path_id
     if !isnothing(path.cost_var) && user_var == path.cost_var
         return path.cost_var_value
     end
-    return get(path.user_vars_in_sol, user_var, 0.0)
+    return path.multiplicity * get(path.user_vars_in_sol, user_var, 0.0)
 end
 
 """
@@ -974,7 +974,7 @@ end
 """
     get_values(optimizer::VrpOptimizer, user_vars::Array{JuMP.VariableRef,1}, path_id::Int)
 
-Get the values for an array of decision variables due to a single copy of a specific path. This function cannot be called
+Get the values for an array of decision variables due to a specific path of the solution. This function cannot be called
 from a cut callback as VrpSolver only supports robust cuts.
 
 """
@@ -1270,17 +1270,15 @@ function _copy_jump_model(original::JuMP.Model, optimizer_cols_info::OptimizerCo
     return copied_model, orig_to_copied_uservar
 end
 
-function _get_path_uservar_map(
-    path::Vector{Int}, graph::VrpGraph, multiplicity::Float64 = 1.0
-)
+function _get_path_uservar_map(path::Vector{Int}, graph::VrpGraph)
     uservar_map = Dict{JuMP.VariableRef,Float64}()
     for arc_id in path
         arc = graph.arcs[arc_id]
         for (uservar, coef) in arc.vars
             if !haskey(uservar_map, uservar)
-                uservar_map[uservar] = multiplicity * coef
+                uservar_map[uservar] = coef
             else
-                uservar_map[uservar] += multiplicity * coef
+                uservar_map[uservar] += coef
             end
         end
     end
