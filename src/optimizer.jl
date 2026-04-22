@@ -173,22 +173,6 @@ function JuMP.optimize!(optimizer::VrpOptimizer)
     return status, has_solution
 end
 
-# checks if a resource var is mapped to an arc
-function _check_resources_vars(user_model::VrpModel)
-    resources_vars = Set(
-        res.cost_var for graph in user_model.graphs for
-        res in graph.resources if !isnothing(res.cost_var)
-    )
-    for graph in user_model.graphs
-        for arc in graph.arcs
-            if any(var_and_coeff -> (var_and_coeff[1] in resources_vars), arc.vars)
-                error("VRPSolver error: resource var cannot be mapped to arcs")
-            end
-        end
-    end
-    return nothing
-end
-
 function _extract_user_var_to_graphs(user_model::VrpModel)
     var_to_graphs = Dict{JuMP.VariableRef,Array{Int,1}}()
     for graph_id in 1:length(user_model.graphs)
@@ -1064,13 +1048,14 @@ function get_enum_paths(user_model::VrpModel, paramfile::String)
     while status == 1
         graph_id = c_getProblemFirstId(bcsol) + 1
         bapcodarcids = c_getArcs(bcsol)
+        cost_var_value = c_getTrueCost(bcsol)
         graph = user_model.graphs[graph_id]
         path = Int[]
         for bid in bapcodarcids
             arc_id = graph.arc_bapcod_id_to_id[bid]
             push!(path, arc_id)
         end
-        push!(paths, (graph, path))
+        push!(paths, (graph, path, cost_var_value))
         status = c_next(bcsol)
     end
     return paths
@@ -1094,7 +1079,7 @@ print_enum_paths(enum_paths)
 function print_enum_paths(paths)
     println("\n\nEnumerated paths (v1->(arc_id)->v2->...):")
     net_vertex_id_map = Dict{Int,Dict{Int,Int}}()
-    for (id, (graph, arcs)) in enumerate(paths)
+    for (id, (graph, arcs, cost_var_value)) in enumerate(paths)
         if !haskey(net_vertex_id_map, graph.id)
             net_vertex_id_map[graph.id] = Dict(
                 value => key for (key, value) in graph.user_vertex_id_map
@@ -1170,7 +1155,19 @@ function get_complete_formulation(model::VrpModel, paramfile::String)
         push!(paths_uservar_maps, _get_path_uservar_map(path, graph))
     end
     for (orig_user_var, copied_user_var) in orig_to_copied_uservar
-        if optimizer_cols_info.uservar_to_problem_type[orig_user_var] == :DW_SP
+        optimizer_cols_info.uservar_to_problem_type[orig_user_var] == :DW_MASTER && continue
+        if _is_resource_var(model, orig_user_var)
+            coeffs = [1]
+            vars = [copied_user_var]
+            #lambda vars
+            for (id, (graph, _, cost_var_value)) in enumerate(paths)
+                !_is_resource_var_in_graph(graph, orig_user_var) && continue
+                if !iszero(cost_var_value)
+                    push!(coeffs, -cost_var_value)
+                    push!(vars, lambda_vars[id])
+                end
+            end
+        elseif optimizer_cols_info.uservar_to_problem_type[orig_user_var] == :DW_SP
             coeffs = [1]
             vars = [copied_user_var]
             #lambda vars
@@ -1180,12 +1177,12 @@ function get_complete_formulation(model::VrpModel, paramfile::String)
                     push!(vars, lambda_vars[id])
                 end
             end
-            expr = JuMP.AffExpr()
-            for (v, c) in zip(vars, coeffs)
-                expr += c * v
-            end
-            @constraint(formulation, expr in MOI.EqualTo(0.0))
         end
+        expr = JuMP.AffExpr()
+        for (v, c) in zip(vars, coeffs)
+            expr += c * v
+        end
+        @constraint(formulation, expr in MOI.EqualTo(0.0))
     end
 
     # convexity constraints
@@ -1211,6 +1208,12 @@ function _copy_jump_model(original::JuMP.Model, optimizer_cols_info::OptimizerCo
         for (coef, v) in linear_terms(expr)
             new_expr += coef * varmap[v]
         end
+        return new_expr
+    end
+
+    function substitute_affexpr(var::JuMP.VariableRef, varmap)
+        new_expr = JuMP.AffExpr(0.0)
+        new_expr += varmap[var]
         return new_expr
     end
 

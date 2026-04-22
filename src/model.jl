@@ -1445,3 +1445,34 @@ Features from Set B found in your model: $(join(found_B, ", "))
 
     return isempty(found_A)
 end
+
+# checks if a resource var is mapped to an arc
+function _check_resources_vars(user_model::VrpModel)
+    resources_vars = Set(
+        res.cost_var for graph in user_model.graphs for
+        res in graph.resources if !isnothing(res.cost_var)
+    )
+    for graph in user_model.graphs
+        for arc in graph.arcs
+            if any(var_and_coeff -> (var_and_coeff[1] in resources_vars), arc.vars)
+                error("VRPSolver error: resource var cannot be mapped to arcs")
+            end
+        end
+    end
+    return nothing
+end
+
+function _is_resource_var(user_model::VrpModel, user_var::JuMP.VariableRef)
+    resources_vars = Set(
+        res.cost_var for graph in user_model.graphs for
+        res in graph.resources if !isnothing(res.cost_var)
+    )
+    return user_var in resources_vars
+end
+
+function _is_resource_var_in_graph(graph::VrpGraph, user_var::JuMP.VariableRef)
+    resources_vars = Set(
+        res.cost_var for res in graph.resources if !isnothing(res.cost_var)
+    )
+    return user_var in resources_vars
+end
