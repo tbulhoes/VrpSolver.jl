@@ -1461,18 +1461,3 @@ function _check_resources_vars(user_model::VrpModel)
     end
     return nothing
 end
-
-function _is_resource_var(user_model::VrpModel, user_var::JuMP.VariableRef)
-    resources_vars = Set(
-        res.cost_var for graph in user_model.graphs for
-        res in graph.resources if !isnothing(res.cost_var)
-    )
-    return user_var in resources_vars
-end
-
-function _is_resource_var_in_graph(graph::VrpGraph, user_var::JuMP.VariableRef)
-    resources_vars = Set(
-        res.cost_var for res in graph.resources if !isnothing(res.cost_var)
-    )
-    return user_var in resources_vars
-end

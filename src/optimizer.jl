@@ -766,10 +766,48 @@ function _get_sp_var_value(
     return var_value
 end
 
-function _register_solutions(optimizer::VrpOptimizer, bapcodsol; from_model = true)
+function _get_sp_sols(optimizer::VrpOptimizer, bapcodsol)
     bapcod_model = optimizer.bapcod_model
     user_vars = all_variables(optimizer.user_model.formulation)
     spsols_in_sol = SpSol[]
+    optimizer_cols_info = optimizer.optimizer_cols_info
+
+    status = c_next(bapcodsol) # skip master solution
+    while status == 1
+        subproblem_id = Int(c_getProblemFirstId(bapcodsol))
+        mult = c_getMultiplicity(bapcodsol)
+        graph = optimizer.user_model.graphs[subproblem_id + 1]
+        arcs_ids = [
+            graph.arc_bapcod_id_to_id[arc_bap_id] for arc_bap_id in c_getArcs(bapcodsol)
+        ]
+
+        spsol = SpSol(
+            graph.id,
+            mult,
+            Dict{JuMP.VariableRef,Float64}(),
+            [graph.arcs[arc_id] for arc_id in arcs_ids],
+        )
+
+        for user_var in user_vars
+            if optimizer_cols_info.uservar_to_problem_type[user_var] == :DW_MASTER
+                continue
+            end
+            user_var_val = _get_sp_var_value(optimizer, bapcod_model, user_var, bapcodsol)
+            if user_var_val > 0
+                spsol.user_vars_in_sol[user_var] = mult * user_var_val
+            end
+        end
+
+        push!(spsols_in_sol, spsol)
+        status = c_next(bapcodsol)
+    end
+
+    return spsols_in_sol
+end
+
+function _register_solutions(optimizer::VrpOptimizer, bapcodsol; from_model = true)
+    bapcod_model = optimizer.bapcod_model
+    user_vars = all_variables(optimizer.user_model.formulation)
     optimizer_cols_info = optimizer.optimizer_cols_info
     unmapped_vars_in_sol = Dict{JuMP.VariableRef,Float64}()
 
@@ -794,56 +832,9 @@ function _register_solutions(optimizer::VrpOptimizer, bapcodsol; from_model = tr
     end
     optimizer.unmapped_vars_in_sol = unmapped_vars_in_sol
 
-    # retrieving subproblem sols
-    status = c_next(bapcodsol) # skip master solution
-    while status == 1
-        subproblem_id = Int(c_getProblemFirstId(bapcodsol))
-        mult = c_getMultiplicity(bapcodsol)
-        graph = optimizer.user_model.graphs[subproblem_id + 1]
-        arcs_ids = [
-            graph.arc_bapcod_id_to_id[arc_bap_id] for arc_bap_id in c_getArcs(bapcodsol)
-        ]
-        cost_var_value = 0.0
-        cost_var::Union{JuMP.VariableRef,Nothing} = nothing
-        for res in graph.resources
-            if !isnothing(res.cost_var)
-                cost_var = res.cost_var
-                cost_var_value = _get_sp_var_value(
-                    optimizer, bapcod_model, cost_var, bapcodsol
-                )
-                break
-            end
-        end
-        spsol = SpSol(
-            graph.id,
-            mult,
-            _get_path_uservar_map(arcs_ids, graph),
-            [graph.arcs[arc_id] for arc_id in arcs_ids],
-            cost_var_value,
-            cost_var,
-        )
-        push!(spsols_in_sol, spsol)
-
-        if !from_model  # used for the cut callbacks
-            for user_var in user_vars
-                if optimizer_cols_info.uservar_to_problem_type[user_var] == :DW_MASTER
-                    continue
-                end
-                user_var_val = _get_sp_var_value(
-                    optimizer, bapcod_model, user_var, bapcodsol
-                )
-                if user_var_val > 0
-                    spsol.user_vars_in_sol[user_var] = user_var_val
-                end
-            end
-        end
-
-        status = c_next(bapcodsol)
-    end
-    optimizer.spsols_in_sol = spsols_in_sol
-
-    optimizer.sol_defined = true
+    optimizer.spsols_in_sol = _get_sp_sols(optimizer, bapcodsol)
     optimizer.sol_from_model = from_model
+    optimizer.sol_defined = true
 
     return true
 end
@@ -948,10 +939,7 @@ function _get_value(optimizer::VrpOptimizer, user_var::JuMP.VariableRef, path_id
     !(1 <= path_id <= length(optimizer.spsols_in_sol)) &&
         error("VrpSolver error: invalid path id")
     path = optimizer.spsols_in_sol[path_id]
-    if !isnothing(path.cost_var) && user_var == path.cost_var
-        return path.cost_var_value
-    end
-    return path.multiplicity * get(path.user_vars_in_sol, user_var, 0.0)
+    return get(path.user_vars_in_sol, user_var, 0.0)
 end
 
 """
@@ -1057,36 +1045,12 @@ function get_enum_paths(user_model::VrpModel, paramfile::String)
         paramfile;
         fixed_params = ["", "--RCSPmaxNumOfLabelsInHeurEnumeration", "1000"],
     )
-    paths = []
     bcsol = get_enumerated_sp_sols(optimizer.bapcod_model)
-    status = c_next(bcsol)
-    while status == 1
-        graph_id = c_getProblemFirstId(bcsol) + 1
-        graph = user_model.graphs[graph_id]
-        bapcodarcids = c_getArcs(bcsol)
-        cost_var_value = 0.0
-        for res in graph.resources
-            if !isnothing(res.cost_var)
-                cost_var_value = _get_sp_var_value(
-                    optimizer, optimizer.bapcod_model, res.cost_var, bcsol
-                )
-                break
-            end
-        end
-        graph = user_model.graphs[graph_id]
-        path = Int[]
-        for bid in bapcodarcids
-            arc_id = graph.arc_bapcod_id_to_id[bid]
-            push!(path, arc_id)
-        end
-        push!(paths, (graph, path, cost_var_value))
-        status = c_next(bcsol)
-    end
-    return paths
+    return _get_sp_sols(optimizer, bcsol)
 end
 
 """
-    print_enum_paths(paths)
+    print_enum_paths(model, paths)
    
 Print the enumerated paths for all graphs.
 
@@ -1097,36 +1061,37 @@ Warning 1: the enumeration procedure only produces ``\\mathcal{E}``-elementarity
 # Let `model` be a VrpModel and `path_to_params_file` the path for the parameters file
 enum_paths, complete_form = get_complete_formulation(model, path_to_params_file)
 complete_form.solver = CplexSolver() # set MIP solver (it can be another one than CPLEX)
-print_enum_paths(enum_paths)
+print_enum_paths(model, enum_paths)
 ```
 """
-function print_enum_paths(paths)
+function print_enum_paths(user_model::VrpModel, paths::Vector{SpSol})
     println("\n\nEnumerated paths (v1->(arc_id)->v2->...):")
     net_vertex_id_map = Dict{Int,Dict{Int,Int}}()
-    for (id, (graph, arcs, cost_var_value)) in enumerate(paths)
+    for (id, path) in enumerate(paths)
+        graph = user_model.graphs[path.graph_id]
+        arcs = path.arc_seq
         if !haskey(net_vertex_id_map, graph.id)
             net_vertex_id_map[graph.id] = Dict(
                 value => key for (key, value) in graph.user_vertex_id_map
             ) # from user_id to net_id
         end
         print("path $(id) graph $(graph.id): ")
-        arc = graph.arc_id_to_arc[arcs[1]]
+        arc = arcs[1]
         i = net_vertex_id_map[graph.id][arc.tail]
         j = if (graph.cycle_problem && arc.head == graph.sink_id)
             net_vertex_id_map[graph.id][graph.source_id]
         else
             net_vertex_id_map[graph.id][arc.head]
         end
-        print("$i-($(arcs[1]))->$j")
+        print("$i-($(arcs[1].id))->$j")
         prev = j
-        for arcid in arcs[2:end]
-            arc = graph.arc_id_to_arc[arcid]
+        for arc in arcs[2:end]
             j = if (graph.cycle_problem && arc.head == graph.sink_id)
                 net_vertex_id_map[graph.id][graph.source_id]
             else
                 net_vertex_id_map[graph.id][arc.head]
             end
-            print("-($arcid)->$j")
+            print("-($(arc.id))->$j")
             prev = j
         end
         println()
@@ -1137,7 +1102,8 @@ end
 """
     get_complete_formulation(model::VrpModel, paramfile::String)
 
-Get the complete formulation, which includes mapping constraints with λ variables (for paths).
+Get the complete formulation, which includes mapping constraints with λ variables (for paths). The λ variables are, by default,
+integer, but integrality can be relaxed through the optional parameter `relax_lambda`.
 
 The enumerated paths and the complete formulation are returned. It has all enumerated paths for all graphs and a JuMP.Model. 
 This function can be seen as a tool for debugging the VRPSolver model, for example, when applied to small instances to check the correctness
@@ -1152,13 +1118,15 @@ Warning 2: if some user cuts are essential for the correctness of the model (i.e
 # Let `model` be a VrpModel and `path_to_params_file` the path for the parameters file
 enum_paths, complete_form = get_complete_formulation(model, path_to_params_file)
 complete_form.solver = CplexSolver() # set MIP solver (it can be another one than CPLEX)
-print_enum_paths(enum_paths)
+print_enum_paths(model, enum_paths)
 println(complete_form)
 solve(complete_form)
 println("Objective value: ", getobjectivevalue(complete_form))
 ```
 """
-function get_complete_formulation(model::VrpModel, paramfile::String)
+function get_complete_formulation(
+    model::VrpModel, paramfile::String, relax_lambda::Bool = false
+)
     paths = get_enum_paths(model, paramfile)
 
     optimizer_cols_info = _extract_optimizer_cols_info(model)
@@ -1169,37 +1137,22 @@ function get_complete_formulation(model::VrpModel, paramfile::String)
     # creating lamba variables (path variables)
     lambda_vars = []
     for i in 1:length(paths)
-        v = @variable(formulation, base_name = "λ[$i]", lower_bound = 0, integer = true)
+        v = @variable(
+            formulation, base_name = "λ[$i]", lower_bound = 0, integer = !relax_lambda
+        )
         push!(lambda_vars, v)
     end
 
     # mapping constraints
-    paths_uservar_maps = []
-    for (graph, path) in paths
-        push!(paths_uservar_maps, _get_path_uservar_map(path, graph))
-    end
     for (orig_user_var, copied_user_var) in orig_to_copied_uservar
         optimizer_cols_info.uservar_to_problem_type[orig_user_var] == :DW_MASTER && continue
-        if _is_resource_var(model, orig_user_var)
-            coeffs = [1]
-            vars = [copied_user_var]
-            #lambda vars
-            for (id, (graph, _, cost_var_value)) in enumerate(paths)
-                !_is_resource_var_in_graph(graph, orig_user_var) && continue
-                if !iszero(cost_var_value)
-                    push!(coeffs, -cost_var_value)
-                    push!(vars, lambda_vars[id])
-                end
-            end
-        elseif optimizer_cols_info.uservar_to_problem_type[orig_user_var] == :DW_SP
-            coeffs = [1]
-            vars = [copied_user_var]
-            #lambda vars
-            for (id, _) in enumerate(paths)
-                if haskey(paths_uservar_maps[id], orig_user_var)
-                    push!(coeffs, -paths_uservar_maps[id][orig_user_var])
-                    push!(vars, lambda_vars[id])
-                end
+        coeffs = [1]
+        vars = [copied_user_var]
+        #lambda vars
+        for (id, path) in enumerate(paths)
+            if haskey(path.user_vars_in_sol, orig_user_var)
+                push!(coeffs, -path.user_vars_in_sol[orig_user_var])
+                push!(vars, lambda_vars[id])
             end
         end
         expr = JuMP.AffExpr()
@@ -1212,8 +1165,8 @@ function get_complete_formulation(model::VrpModel, paramfile::String)
     # convexity constraints
     for graph in model.graphs
         expr = JuMP.AffExpr()
-        for (id, (g, _)) in enumerate(paths)
-            if g == graph
+        for (id, path) in enumerate(paths)
+            if path.graph_id == graph.id
                 expr += lambda_vars[id]
             end
         end
@@ -1268,19 +1221,4 @@ function _copy_jump_model(original::JuMP.Model, optimizer_cols_info::OptimizerCo
     end
 
     return copied_model, orig_to_copied_uservar
-end
-
-function _get_path_uservar_map(path::Vector{Int}, graph::VrpGraph)
-    uservar_map = Dict{JuMP.VariableRef,Float64}()
-    for arc_id in path
-        arc = graph.arcs[arc_id]
-        for (uservar, coef) in arc.vars
-            if !haskey(uservar_map, uservar)
-                uservar_map[uservar] = coef
-            else
-                uservar_map[uservar] += coef
-            end
-        end
-    end
-    return uservar_map
 end

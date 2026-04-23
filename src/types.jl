@@ -110,8 +110,6 @@ struct SpSol
     multiplicity::Float64
     user_vars_in_sol::Dict{JuMP.VariableRef,Float64}
     arc_seq::Vector{VrpArc}
-    cost_var_value::Float64
-    cost_var::Union{JuMP.VariableRef,Nothing}
 end
 
 mutable struct VrpOptimizer
