@@ -1,16 +1,18 @@
 name = "VrpSolver"
 uuid = "74f9703e-84bc-48c1-adfc-4da7b8ffac08"
 authors = ["Teobaldo Bulhões <tbulhoes@ci.ufpb.br>"]
-version = "0.1.0"
+version = "2.0.0"
 
 [deps]
 ArgParse = "c7e460c6-2fb9-53a9-8c5b-16f535851c63"
+Documenter = "e30172f5-a6a5-5a46-863b-614d45cd2de4"
 JuMP = "4076af6c-e467-56ae-b986-b466b2749572"
 MathOptInterface = "b8f27783-ece8-5eb3-8dc8-9495eed66fee"
 Printf = "de0858da-6303-5e67-8744-51eddeeeb8d7"
 
 [compat]
 ArgParse = "1.2.0"
+Documenter = "1.16.1"
 JuMP = "1.26.0"
 MathOptInterface = "1.41.0"
 Printf = "1.9"

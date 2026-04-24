@@ -33,13 +33,12 @@ function VrpOptimizer(
         baptreedot,
         "--ComputeDissagregateSpSol",
         "false",
+        "--RCSPuseMetaSolver",
+        "1",
     ],
 )
     optimizer_cols_info = _extract_optimizer_cols_info(user_model)
     integer_objective = _has_integer_objective(user_model, optimizer_cols_info)
-    use_meta_solver = _should_use_meta_solver(user_model)
-    push!(fixed_params, "--RCSPuseMetaSolver")
-    push!(fixed_params, use_meta_solver ? "1" : "0")
 
     bapcod_model_ptr = new!(
         param_file,

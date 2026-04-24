@@ -1117,7 +1117,11 @@ function set_branching_priority!(
 end
 
 """
-    function enable_resource_consumption_branching!(model::VrpModel, priority::Int)
+    enable_resource_consumption_branching!(model::VrpModel, priority::Int)
+
+!!! danger "Temporarily Disabled"
+    This function is currently disabled and will be restored in a future release. 
+    To use this feature now, please refer to the legacy Docker installation.
 
 Enable the accumulated resource consumption branching. 
 Given a packing set ``S \\in \\mathcal{P}``, a main resource ``r \\in R^k_M``, and a certain threshold value ``t^*``: in the left child make ``u_{a,r}=t^*``,
@@ -1137,11 +1141,19 @@ enable_resource_consumption_branching!(model, 1)
 ```
 """
 function enable_resource_consumption_branching!(model::VrpModel, priority::Int)
+    error(
+        "VRPSolver error: This function is currently disabled and will be restored in a future release." *
+        " To use this feature now, please refer to the legacy Docker installation",
+    )
     model.branching_priorities["_res_cons_branching_"] = priority
 end
 
 """
-    function enable_packset_ryanfoster_branching!(model::VrpModel, priority::Int)
+    enable_packset_ryanfoster_branching!(model::VrpModel, priority::Int)
+
+!!! danger "Temporarily Disabled"
+    This function is currently disabled and will be restored in a future release. 
+    To use this feature now, please refer to the legacy Docker installation.
 
 Enable the Ryan and Foster branching.
 Given two distinct packing sets ``S`` and ``S'`` in ``\\mathcal{P}``, let ``P(S,S') \\subseteq P`` be the subset of the paths that contain arcs in both ``S`` and ``S'``.
@@ -1160,11 +1172,20 @@ enable_packset_ryanfoster_branching!(model, 2)
 ```
 """
 function enable_packset_ryanfoster_branching!(model::VrpModel, priority::Int)
+    error(
+        "VRPSolver error: This function is currently disabled and will be restored in a future release." *
+        " To use this feature now, please refer to the legacy Docker installation",
+    )
     model.branching_priorities["_ryanfoster_branching_"] = priority
 end
 
 """
-    function add_permanent_ryanfoster_constraint!(model::VrpModel, firstPackSetId::Integer, secondPackSetId::Integer, together::Bool)
+    add_permanent_ryanfoster_constraint!(model::VrpModel, firstPackSetId::Integer, secondPackSetId::Integer, together::Bool)
+
+
+!!! danger "Temporarily Disabled"
+    This function is currently disabled and will be restored in a future release. 
+    To use this feature now, please refer to the legacy Docker installation.
 
 Set a permanent Ryan and Foster constraint for a pair of packing sets.
 
@@ -1184,6 +1205,10 @@ add_permanent_ryanfoster_constraint!(model, 3, 4, false)
 function add_permanent_ryanfoster_constraint!(
     model::VrpModel, firstPackSetId::Integer, secondPackSetId::Integer, together::Bool
 )
+    error(
+        "VRPSolver error: This function is currently disabled and will be restored in a future release." *
+        " To use this feature now, please refer to the legacy Docker installation",
+    )
     _check_id(firstPackSetId, 1, length(model.packing_sets))
     _check_id(secondPackSetId, 1, length(model.packing_sets))
     (firstPackSetId == secondPackSetId) && error(
@@ -1328,6 +1353,10 @@ end
 """
     add_strongkpath_cut_separator!(model::VrpModel, demands::Array{Tuple{Array{Tuple{VrpGraph,Int}, 1},Float64},1}, capacity::Float64)
 
+!!! danger "Temporarily Disabled"
+    This function is currently disabled and will be restored in a future release. 
+    To use this feature now, please refer to the legacy Docker installation.
+
 Define a *strong k-path* (SKP) separator over a collection of packing sets defined on vertices.
 SKP separators cannot be used if the packings sets are defined on arcs.
 
@@ -1349,6 +1378,11 @@ function add_strongkpath_cut_separator!(
     demands::Array{Tuple{Array{Tuple{VrpGraph,Int},1},Float64},1},
     capacity::Float64,
 )
+    error(
+        "VRPSolver error: This function is currently disabled and will be restored in a future release." *
+        " To use this feature now, please refer to the legacy Docker installation",
+    )
+
     for (ps_set, _) in demands
         !(ps_set in model.packing_sets) && error(
             "VRPSolver error: collection that is not a packing set was used in a strong k-path cut separator." *
@@ -1398,47 +1432,6 @@ function add_strongkpath_cut_separator!(
     end
 
     push!(model.strongkpath_cuts_info, CapacityCutInfo(id_demands, Int(capacity), -1))
-end
-
-function _should_use_meta_solver(user_model::VrpModel)
-    features_A = [
-        "Strong k-path cuts", "Ryan and Foster branching", "Resource consumption branching"
-    ]
-    features_B = ["Custom resource", "Overlapping (packing/elementarity) sets"]
-
-    found_A = []
-    if _using_resource_consumption_branching(user_model)
-        push!(found_A, "Resource consumption branching")
-    end
-    if _using_ryan_and_foster_branching(user_model)
-        push!(found_A, "Ryan and Foster branching")
-    end
-    if _using_strong_kpath_cuts(user_model)
-        push!(found_A, "Strong k-path cuts")
-    end
-
-    found_B = []
-    if _has_custom_resource(user_model)
-        push!(found_B, "Custom resource")
-    end
-    if _has_overlapping_sets(user_model)
-        push!(found_B, "Overlapping (packing/elementarity) sets")
-    end
-
-    if !isempty(found_A) && !isempty(found_B)
-        error("""
-VRPSolver error: Model cannot include features from both sets simultaneously.
-This is a current limitation of VRPSolver and will be addressed in future versions.
-
-Set A: $(join(features_A, ", "))
-Set B: $(join(features_B, ", "))
-
-Features from Set A found in your model: $(join(found_A, ", "))
-Features from Set B found in your model: $(join(found_B, ", "))
-""")
-    end
-
-    return isempty(found_A)
 end
 
 # checks if a resource var is mapped to an arc

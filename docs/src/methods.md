@@ -104,6 +104,9 @@ set_arc_resource_bounds!
 enable_rank1_cuts!
 ```
 
+```@docs
+disable_rank1_cuts!
+```
 
 ```@docs
 VrpModel
