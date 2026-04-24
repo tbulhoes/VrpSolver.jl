@@ -782,7 +782,7 @@ function _get_sp_sols(optimizer::VrpOptimizer, bapcodsol)
         ]
 
         spsol = SpSol(
-            graph.id,
+            graph,
             mult,
             Dict{JuMP.VariableRef,Float64}(),
             [graph.arcs[arc_id] for arc_id in arcs_ids],
@@ -1050,7 +1050,7 @@ function get_enum_paths(user_model::VrpModel, paramfile::String)
 end
 
 """
-    print_enum_paths(model, paths)
+    print_enum_paths(paths)
    
 Print the enumerated paths for all graphs.
 
@@ -1061,14 +1061,14 @@ Warning 1: the enumeration procedure only produces ``\\mathcal{E}``-elementarity
 # Let `model` be a VrpModel and `path_to_params_file` the path for the parameters file
 enum_paths, complete_form = get_complete_formulation(model, path_to_params_file)
 complete_form.solver = CplexSolver() # set MIP solver (it can be another one than CPLEX)
-print_enum_paths(model, enum_paths)
+print_enum_paths(enum_paths)
 ```
 """
-function print_enum_paths(user_model::VrpModel, paths::Vector{SpSol})
+function print_enum_paths(paths::Vector{SpSol})
     println("\n\nEnumerated paths (v1->(arc_id)->v2->...):")
     net_vertex_id_map = Dict{Int,Dict{Int,Int}}()
     for (id, path) in enumerate(paths)
-        graph = user_model.graphs[path.graph_id]
+        graph = path.graph
         arcs = path.arc_seq
         if !haskey(net_vertex_id_map, graph.id)
             net_vertex_id_map[graph.id] = Dict(
@@ -1118,7 +1118,7 @@ Warning 2: if some user cuts are essential for the correctness of the model (i.e
 # Let `model` be a VrpModel and `path_to_params_file` the path for the parameters file
 enum_paths, complete_form = get_complete_formulation(model, path_to_params_file)
 complete_form.solver = CplexSolver() # set MIP solver (it can be another one than CPLEX)
-print_enum_paths(model, enum_paths)
+print_enum_paths(enum_paths)
 println(complete_form)
 solve(complete_form)
 println("Objective value: ", getobjectivevalue(complete_form))
@@ -1166,7 +1166,7 @@ function get_complete_formulation(
     for graph in model.graphs
         expr = JuMP.AffExpr()
         for (id, path) in enumerate(paths)
-            if path.graph_id == graph.id
+            if path.graph == graph
                 expr += lambda_vars[id]
             end
         end

@@ -106,7 +106,7 @@ struct OptimizerColsInfo
 end
 
 struct SpSol
-    graph_id::Int
+    graph::VrpGraph
     multiplicity::Float64
     user_vars_in_sol::Dict{JuMP.VariableRef,Float64}
     arc_seq::Vector{VrpArc}
