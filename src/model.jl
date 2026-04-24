@@ -478,13 +478,8 @@ function add_arc_var_mapping!(
 )
     _check_id(arc_id, 1, length(graph.arcs))
     for (user_var, coeff) in vars
-        if is_binary(user_var) == :Bin
-            error(
-                "VRPSolver error: mapping a binary variable is not allowed. Please redefine it as integer or continuous.",
-            )
-        end
         for (var, _) in graph.arcs[arc_id].vars
-            if var == user_var
+            if var === user_var
                 error(
                     "VRPSolver error: variable $(user_var) is mapped more than once to arc $(arc_id) of graph $(graph.id)",
                 )

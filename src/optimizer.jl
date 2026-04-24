@@ -1166,7 +1166,7 @@ function get_complete_formulation(
     for graph in model.graphs
         expr = JuMP.AffExpr()
         for (id, path) in enumerate(paths)
-            if path.graph == graph
+            if path.graph === graph
                 expr += lambda_vars[id]
             end
         end
