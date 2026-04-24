@@ -1,7 +1,7 @@
 
 
 ```@docs
-VrpGraph
+VrpGraph(::VrpModel, ::Array{Int,1}, ::Int, ::Int, ::Tuple{Int,Int})
 ```
 
 ```@docs
@@ -109,14 +109,13 @@ disable_rank1_cuts!
 ```
 
 ```@docs
-VrpModel
+VrpModel()
 ```
 
 
 ```@docs
-VrpOptimizer
+VrpOptimizer(::VrpModel, ::String, ::String; ::String, Array{String,1})
 ```
-
 
 ```@docs
 optimize!

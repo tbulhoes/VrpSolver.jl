@@ -1,6 +1,6 @@
 
 """
-    VrpOptimizer(user_model::VrpModel, param_file::String, instance_name = ""; baptreedot="BaPTree.dot")
+    VrpOptimizer(user_model::VrpModel, param_file::String, instance_name::String = ""; baptreedot::String = "BaPTree.dot")
 
 Build an optimizer for a VrpModel.
 
@@ -15,9 +15,9 @@ Build an optimizer for a VrpModel.
 function VrpOptimizer(
     user_model::VrpModel,
     param_file::String,
-    instance_name = "";
-    baptreedot = "BaPTree.dot",
-    fixed_params = [
+    instance_name::String = "";
+    baptreedot::String = "BaPTree.dot",
+    fixed_params::Array{String,1} = [
         "",
         "--MaxNbOfStagesInColGenProcedure",
         "3",
@@ -1007,7 +1007,7 @@ function get_path_arcs(optimizer::VrpOptimizer, path_id::Int)
 end
 
 """
-    add_dynamic_constr!(optimizer::VrpOptimizer, vars, coeffs, sense, rhs, constr_name::String)
+    add_dynamic_constr!(optimizer::VrpOptimizer, vars::Array{JuMP.VariableRef,1}, coeffs::Array{Float64,1}, sense, rhs::Float64, constr_name::String)
 
 Add user cut (dynamic constraint) to the formulation.
 
@@ -1032,7 +1032,12 @@ add_cut_callback!(model, my_callback, "my_callback")
 ```
 """
 function add_dynamic_constr!(
-    optimizer::VrpOptimizer, vars, coeffs, sense, rhs, constr_name::String
+    optimizer::VrpOptimizer,
+    vars::Array{JuMP.VariableRef,1},
+    coeffs::Array{Float64,1},
+    sense,
+    rhs::Float64,
+    constr_name::String,
 )
     constr_info = DynamicConstrInfo(vars, coeffs, sense, rhs)
     push!(optimizer.callbacks[constr_name].to_add_constrs, constr_info)

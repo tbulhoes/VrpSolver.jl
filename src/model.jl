@@ -291,7 +291,7 @@ function show(io::IO, graph::VrpGraph)
 end
 
 """
-    add_resource!(graph::VrpGraph; main = false, binary = false, disposable = true, step_size = 0.0)
+    add_resource!(graph::VrpGraph; main::Bool = false, binary::Bool = false, disposable::Bool = true, step_size::Float64 = 0.0)
 
 Add a resource to the VrpGraph `graph`. 
 
@@ -312,12 +312,12 @@ r2 = add_resource!(graph, main=true, disposable=false) # create a main, non-disp
 """
 function add_resource!(
     graph::VrpGraph;
-    main = false,
-    binary = false,
-    disposable = true,
-    custom = false,
+    main::Bool = false,
+    binary::Bool = false,
+    disposable::Bool = true,
+    custom::Bool = false,
     cost_var::Union{JuMP.VariableRef,Nothing} = nothing,
-    step_size = 0.0,
+    step_size::Float64 = 0.0,
 )
     main && binary && error("VRPSolver error: binary resource cannot be main resource")
     binary && disposable && error("VRPSolver error: binary resource cannot be disposable")
@@ -1270,7 +1270,7 @@ end
 add_cut_callback!(model, edge_ub_callback, "edge_ub")
 ```
 """
-function add_cut_callback!(user_model::VrpModel, callback::Any, constr_name::String)
+function add_cut_callback!(user_model::VrpModel, callback::Function, constr_name::String)
     user_model.callbacks[constr_name] = callback
 end
 

@@ -74,7 +74,7 @@ mutable struct VrpModel
     branching_exps::Array{Any,1}
     use_rank1_cuts::Bool
     optimizer::Any
-    callbacks::Dict{String,Any}
+    callbacks::Dict{String,Function}
     cap_cuts_info::Array{CapacityCutInfo,1}
     strongkpath_cuts_info::Array{CapacityCutInfo,1}
     arcs_by_packing_set_pairs::Array{Array{Tuple{VrpGraph,VrpArc}},2}
