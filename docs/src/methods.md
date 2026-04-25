@@ -114,7 +114,7 @@ VrpModel()
 
 
 ```@docs
-VrpOptimizer(::VrpModel, ::String, ::String; ::String, Array{String,1})
+VrpOptimizer(::VrpModel, ::AbstractString, ::AbstractString; ::AbstractString, Array{String,1})
 ```
 
 ```@docs

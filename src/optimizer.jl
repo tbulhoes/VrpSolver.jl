@@ -1,6 +1,6 @@
 
 """
-    VrpOptimizer(user_model::VrpModel, param_file::String, instance_name::String = ""; baptreedot::String = "BaPTree.dot")
+    VrpOptimizer(user_model::VrpModel, param_file::AbstractString, instance_name::AbstractString = ""; baptreedot::AbstractString = "BaPTree.dot")
 
 Build an optimizer for a VrpModel.
 
@@ -14,9 +14,9 @@ Build an optimizer for a VrpModel.
 """
 function VrpOptimizer(
     user_model::VrpModel,
-    param_file::String,
-    instance_name::String = "";
-    baptreedot::String = "BaPTree.dot",
+    param_file::AbstractString,
+    instance_name::AbstractString = "";
+    baptreedot::AbstractString = "BaPTree.dot",
     fixed_params::Array{String,1} = [
         "",
         "--MaxNbOfStagesInColGenProcedure",
@@ -30,13 +30,17 @@ function VrpOptimizer(
         "--RCSPrankOneCutsTypeToSeparate",
         "1",      # FIXME: Covering cuts makes VrpSolver crash
         "-t",
-        baptreedot,
+        string(baptreedot),
         "--ComputeDissagregateSpSol",
         "false",
         "--RCSPuseMetaSolver",
         "1",
     ],
 )
+    baptreedot = string(baptreedot)
+    instance_name = string(instance_name)
+    param_file = string(param_file)
+
     optimizer_cols_info = _extract_optimizer_cols_info(user_model)
     integer_objective = _has_integer_objective(user_model, optimizer_cols_info)
 
