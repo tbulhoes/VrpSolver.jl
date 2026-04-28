@@ -99,6 +99,11 @@ function toArray(a)
     if isa(a, Integer)
         return [a]
     end
+
+    if isa(a, JuMP.Containers.DenseAxisArrayKey)
+        return toArray(a.I)
+    end
+
     arr = Vector{Int}()
     for i in a
         arr = vcat(arr, toArray(i))
