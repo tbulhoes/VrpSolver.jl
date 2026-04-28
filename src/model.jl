@@ -827,7 +827,7 @@ automatic elementarity sets (one for each packing set) created with [`set_arc_pa
 es_1 = (G[1],[1,2,4]) # elem. set on graph G[1] composed by the arcs 1, 2, and 4  
 es_2 = (G[2],[2,3,5,9]) # elem. set on G[2] with 4 arcs
 es_3 = (G[2],[1,4,6,7]) # another elem. set on G[2]
-es_4 = (G[2], [1,8]) # another elem. set on G[2]. Note that `es_3` and `es_4` share arc 1
+es_4 = (G[2], [1,8]) # another elem. set on G[2]. Note that `es_3` and `es_4` share arc 1 of graph G[2]
 set_additional_arc_elementarity_sets!(model, [es_1, es_2, es_3, es_4]) # passing the collection of elem. sets to the model
 ```
 """
@@ -899,7 +899,7 @@ function set_vertex_packing_sets!(
     collection::Array{Array{Tuple{VrpGraph,Int},1},1},
     define_covering_sets::Bool = false,
 )
-    if user_model.elem_sets_type != NoSet
+    if user_model.elem_sets_type != VrpSolver.NoSet
         error("VRPSolver error:  Packing sets must be defined before elementarity sets")
     end
     if !isempty(user_model.cap_cuts_info)
@@ -915,7 +915,7 @@ function set_vertex_packing_sets!(
 
     _reset_packing_sets(user_model)
     user_model.packing_sets = collection
-    user_model.packing_sets_type = VertexSet
+    user_model.packing_sets_type = VrpSolver.VertexSet
     user_model.define_covering_sets = define_covering_sets
     n = length(collection)
     for ps_id in 1:n
