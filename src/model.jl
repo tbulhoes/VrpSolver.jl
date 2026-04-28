@@ -745,7 +745,7 @@ end
 
 Define a collection of packing sets on arcs. For each defined packing set, VRPSolver automatically will create an equivalent elementarity set on arcs.
 
-The collection must be a set of mutually disjoint subsets of arcs. Not all arcs need to belong to some packing set.
+The collection is a set of subsets of arcs, which are not necessarily disjoint. Not all arcs need to belong to some packing set.
 The index of a packing set in the array defines its packing set id.
 
 # Examples
@@ -755,7 +755,8 @@ The index of a packing set in the array defines its packing set id.
 ps_1 = [(G[1],1),(G[2],1),(G[3],1)] # packing set composed by arcs of different graphs
 ps_2 = [(G[2],2),(G[2],4)] # packing set composed by arcs of the same graph
 ps_3 = [(G[2],3),(G[3],2)] # another packing set
-set_arc_packing_sets!(model, [ps_1, ps_2, ps_3]) # passing the collection of packing sets to the model
+ps_4 = [(G[2],3),(G[3],3)] # this packing set overlaps with `ps_3`
+set_arc_packing_sets!(model, [ps_1, ps_2, ps_3, ps_4]) # passing the collection of packing sets to the model
 ```
 """
 function set_arc_packing_sets!(
@@ -815,7 +816,7 @@ end
 
 Define an additional collection of elementarity sets on arcs.
 
-The collection must be a set of mutually disjoint subsets of arcs. Not all arcs need to belong to some elementarity set.
+The collection is a set of subsets of arcs, which are not necessarily disjoint. Not all arcs need to belong to some elementarity set.
 The index ``i`` of a elementarity set in the array defines its elementarity set id as ``|\\mathcal{P}|+i`` because there are ``|\\mathcal{P}|`` 
 automatic elementarity sets (one for each packing set) created with [`set_arc_packing_sets!`](@ref).
 
@@ -826,7 +827,8 @@ automatic elementarity sets (one for each packing set) created with [`set_arc_pa
 es_1 = (G[1],[1,2,4]) # elem. set on graph G[1] composed by the arcs 1, 2, and 4  
 es_2 = (G[2],[2,3,5,9]) # elem. set on G[2] with 4 arcs
 es_3 = (G[2],[1,4,6,7]) # another elem. set on G[2]
-set_additional_arc_elementarity_sets!(model, [es_1, es_2, es_3]) # passing the collection of elem. sets to the model
+es_4 = (G[2], [1,8]) # another elem. set on G[2]. Note that `es_3` and `es_4` share arc 1
+set_additional_arc_elementarity_sets!(model, [es_1, es_2, es_3, es_4]) # passing the collection of elem. sets to the model
 ```
 """
 function set_additional_arc_elementarity_sets!(
@@ -879,7 +881,7 @@ end
 
 Define a collection of packing sets on vertices. For each defined packing set, VRPSolver automatically will create an equivalent elementarity set on vertices.
 
-The collection must be a set of subsets of vertices. The subsets are not necessarily disjoint. 
+The collection is a set of subsets of vertices, which are not necessarily disjoint.
 Not all vertices need to belong to some packing set. The index of a packing set in the array defines its packing set id.
 
 # Examples
@@ -1001,7 +1003,7 @@ end
 
 Define an additional collection of elementarity sets on vertices.
 
-The collection must be a set of mutually disjoint subsets of vertices. Not all vertices need to belong to some elementarity set.
+The collection is a set of subsets of vertices, which are not necessarily disjoint. Not all vertices need to belong to some elementarity set.
 The index ``i`` of a elementarity set in the array defines its elementarity set id as ``|\\mathcal{P}^V|+i`` because there are ``|\\mathcal{P}^V|`` 
 automatic elementarity sets (one for each packing set) created with [`set_vertex_packing_sets!`](@ref).
 
@@ -1012,7 +1014,8 @@ automatic elementarity sets (one for each packing set) created with [`set_vertex
 es_1 = (G[1],[1,2,4]) # elem. set on graph G[1] composed by the vertices 1, 2, and 4  
 es_2 = (G[2],[2,3,5,9]) # elem. set on G[2] with 4 vertices
 es_3 = (G[2],[1,4,6,7]) # another elem. set on G[2]
-set_additional_vertex_elementarity_sets!(model, [es_1, es_2, es_3]) # passing the collection of elem. sets to the model
+es_4 = (G[2], [1,8]) # another elem. set on G[2]. Note that `es_3` and `es_4` share vertex 1
+set_additional_vertex_elementarity_sets!(model, [es_1, es_2, es_3, es_4]) # passing the collection of elem. sets to the model
 ```
 """
 function set_additional_vertex_elementarity_sets!(
