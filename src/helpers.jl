@@ -18,13 +18,13 @@ function split_var_name(var)
     return (var_container_name, var_id)
 end
 
-function get_obj_terms(jump_model::Model)
+function get_obj_terms(jump_model::Model)::Dict{JuMP.VariableRef,Float64}
     obj = objective_function(jump_model)
     obj_terms = if isa(obj, JuMP.GenericAffExpr)
         !iszero(obj.constant) && error(
             "VRPSolver error: constant part of the objective function must be zero"
         )
-        obj.terms
+        Dict(obj.terms)
     elseif isa(obj, JuMP.VariableRef)
         Dict(obj => 1.0)
     else
