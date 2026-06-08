@@ -949,6 +949,8 @@ function set_vertex_packing_sets!(
         end
     end
 
+    GC.enable(false)
+
     # build data structures to access lists of arcs by packing set pairs
     # and by mapped variables (to be used next)
     user_model.arcs_by_packing_set_pairs = [Tuple{VrpGraph,VrpArc}[] for _ in 1:n, _ in 1:n]
@@ -985,6 +987,8 @@ function set_vertex_packing_sets!(
             filter!(x -> !(x in gr_arcs), ps_gr_arcs)
         end
     end
+
+    GC.enable(true)
 end
 
 function _add_vertex_to_packing_set(

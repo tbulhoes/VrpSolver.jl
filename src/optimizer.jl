@@ -213,6 +213,8 @@ function _generate_pricing_networks(
 )
     isempty(user_model.graphs) && error("VRPSolver error: no graph defined")
 
+    GC.enable(false)
+
     c_register_subproblems(
         bapcod_model, [(spid, :DW_SP) for spid in 0:(length(user_model.graphs) - 1)]
     )
@@ -406,9 +408,13 @@ function _generate_pricing_networks(
             spid in 0:(length(user_model.graphs) - 1)
         ],
     )
+
+    GC.enable(true)
 end
 
 function _extract_optimizer_cols_info(user_model::VrpModel)
+    GC.enable(false)
+
     _check_resources_vars(user_model)
     user_var_to_graphs = _extract_user_var_to_graphs(user_model)
     user_form = user_model.formulation
@@ -493,6 +499,9 @@ function _extract_optimizer_cols_info(user_model::VrpModel)
             uservar_to_colids[user_var] = colsids
         end
     end
+
+    GC.enable(true)
+
     return OptimizerColsInfo(
         uservar_to_colids,
         uservar_to_problem_type,
@@ -509,6 +518,8 @@ end
 function _build_optimizer_vars_and_constrs(
     user_model::VrpModel, bapcod_model_ptr, optimizer_cols_info::OptimizerColsInfo
 )
+    GC.enable(false)
+
     user_form = user_model.formulation
     nconstrs = sum(
         values(num_constraints(user_form; count_variable_in_set_constraints = false))
@@ -594,11 +605,15 @@ function _build_optimizer_vars_and_constrs(
     end
     push!(starts, pos)
     c_register_cstrs(bapcod_model_ptr, starts, rows_id, nonzeros, clbs, cubs, constrs)
+
+    GC.enable(true)
 end
 
 function _has_integer_objective(
     user_model::VrpModel, optimizer_cols_info::OptimizerColsInfo
 )
+    GC.enable(false)
+
     user_form = user_model.formulation
     user_vars = all_variables(user_form)
     obj_terms = get_obj_terms(user_form)
@@ -606,11 +621,13 @@ function _has_integer_objective(
         # checking if the coefficient in the objective function is integral
         var_cost = get(obj_terms, user_var, 0.0)
         if modf(var_cost)[1] != 0.0
+            GC.enable(true)
             return false
         end
         # checking if unmapped variables are integer
         if optimizer_cols_info.uservar_to_problem_type[user_var] == :DW_MASTER &&
             !(is_integer(user_var) || is_binary(user_var))
+            GC.enable(true)
             return false
         end
     end
@@ -620,18 +637,22 @@ function _has_integer_objective(
         for arc in graph.arcs
             for (_, coeff) in arc.vars
                 if modf(coeff)[1] != 0.0
+                    GC.enable(true)
                     return false
                 end
             end
         end
     end
 
+    GC.enable(true)
     return true
 end
 
 function _set_branching_priorities_in_optimizer(
     user_model::VrpModel, bapcod_model_ptr, optimizer_cols_info::OptimizerColsInfo
 )
+    GC.enable(false)
+
     user_vars = all_variables(user_model.formulation)
 
     # defining the priority of single variables
@@ -751,6 +772,8 @@ function _set_branching_priorities_in_optimizer(
             add_branching_expression(bapcod_model_ptr, exp_array_id, (1,), colsids, coeffs)
         end
     end
+
+    GC.enable(true)
 end
 
 # user_var must be a mapped or a resource variable
