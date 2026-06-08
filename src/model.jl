@@ -291,15 +291,17 @@ function show(io::IO, graph::VrpGraph)
 end
 
 """
-    add_resource!(graph::VrpGraph; main::Bool = false, binary::Bool = false, disposable::Bool = true, step_size::Float64 = 0.0)
+    add_resource!(graph::VrpGraph; main::Bool = false, binary::Bool = false, disposable::Bool = true, custom::Bool = false, cost_var = nothing, step_size::Float64 = 0.0)
 
-Add a resource to the VrpGraph `graph`. 
+Add a resource to the VrpGraph `graph`.
 
-# Optional arguments 
-- `main::Bool`: indicates that the resource is main or secondary. 
-- `binary::Bool`: indicates that the resource is binary, i.e., its accumulated consumption can only be `0` or `1`. 
+# Optional arguments
+- `main::Bool`: indicates that the resource is main or secondary.
+- `binary::Bool`: indicates that the resource is binary, i.e., its accumulated consumption can only be `0` or `1`.
 - `disposable::Bool`: indicates that the resource is disposable or non-disposable.
-- `step_size::Float64`: only for main resources, this advanced parameter is used for determining the resource consumption intervals that define each bucket on the labeling algorithm during the pricing. 
+- `custom::Bool`: marks the resource as a custom resource. See [Custom Resources](@ref) for the full workflow.
+- `cost_var`: a JuMP `VariableRef` whose column is passed to the BaPCod custom resource extension as the associated cost column. Only meaningful when `custom=true`.
+- `step_size::Float64`: only for main resources, this advanced parameter is used for determining the resource consumption intervals that define each bucket on the labeling algorithm during the pricing.
 if step_size is not given, it is determined automatically for main resources, based on the parameter `RCSPnumberOfBucketsPerVertex`.
 
 # Examples
@@ -307,6 +309,7 @@ if step_size is not given, it is determined automatically for main resources, ba
 # let `graph` be a VrpGraph
 r1 = add_resource!(graph) # create a secondary, disposable, non-binary resource
 r2 = add_resource!(graph, main=true, disposable=false) # create a main, non-disposable, non-binary resource
+r3 = add_resource!(graph, custom=true) # create a custom resource (see Custom Resources)
 ```
 
 """
@@ -642,27 +645,22 @@ function set_arc_resource_bounds!(graph::VrpGraph, arc_id::Int, res_id::Int, lb,
     set_arc_resource_bounds!(graph, arc_id, res_id, Float64(lb), Float64(ub))
 end
 
-# """
-#     set_arc_custom_res_params!(graph::VrpGraph, arc_id::Int, res_id::Int, value::Union{Int,Float64})
+"""
+    set_arc_custom_res_params!(graph::VrpGraph, arc_id::Int, res_id::Int, value::T)
 
-# Set the parameters attached to a given arc for a specific customized resource.
+Set the parameters for a custom resource on a specific arc.
 
-# # Arguments
-# - `graph::VrpGraph`: graph to be considered
-# - `arc_id::Int`: arc to be considered
-# - `res_id::Int`: resource id to define parameters 
-# - `values::T`: struct containing all parameter values
+`value` must be an instance of the arc parameter struct registered with
+[`@register_custom_res_param_types`](@ref). 
 
-# # Example
-# ```julia
-# struct MyParams
-#     first::Cint
-#     secoond::Cdouble
-# end
+# Arguments
+- `graph::VrpGraph`: graph containing the arc.
+- `arc_id::Int`: arc id in `graph`.
+- `res_id::Int`: id of the custom resource (returned by `add_resource!`).
+- `value::T`: struct instance holding the arc-level parameter values.
 
-# set_arc_custom_res_params!(graph, 3, 1, MyParams(4, 2.5)) # set the parameters values 4 and 2.5 for the resource 1 when passing by the arc 3 
-# ```
-# """
+See [Custom Resources](@ref) for the full workflow and an example.
+"""
 function set_arc_custom_res_params!(
     graph::VrpGraph, arc_id::Int, res_id::Int, value::T
 ) where {T}
@@ -673,19 +671,22 @@ function set_arc_custom_res_params!(
     graph.arcs[arc_id].custom_data[res_id] = value
 end
 
-# """
-#     set_vertex_custom_res_params!(graph::VrpGraph, vertex::Int, res_id::Int, value::T)
+"""
+    set_vertex_custom_res_params!(graph::VrpGraph, vertex::Int, res_id::Int, value::T)
 
-# Set the parameters attached to a given vertex for a specific customized resource.
+Set the parameters for a custom resource on a specific vertex.
 
-# Defining the interval ``[lb,ub]`` for res_id at vertex is equivalent to defining the same interval for every incoming arc of vertex.
+`value` must be an instance of the vertex parameter struct registered with
+[`@register_custom_res_param_types`](@ref). 
 
-# # Arguments
-# - `graph::VrpGraph`: graph to be considered
-# - `vertex::Int`: vertex id in the VrpGraph `graph`.
-# - `res_id::Int`: resource id in the VrpGraph `graph`.
-# - `values::T`: struct containing all parameter values
-# """
+# Arguments
+- `graph::VrpGraph`: graph containing the vertex.
+- `vertex::Int`: user-facing vertex id in `graph`.
+- `res_id::Int`: id of the custom resource (returned by `add_resource!`).
+- `value::T`: struct instance holding the vertex-level parameter values.
+
+See [Custom Resources](@ref) for the full workflow and an example.
+"""
 function set_vertex_custom_res_params!(
     graph::VrpGraph, vertex::Int, res_id::Int, value::T
 ) where {T}
@@ -699,16 +700,25 @@ function set_vertex_custom_res_params!(
     end
 end
 
-# """
-#     set_const_custom_res_params!(graph::VrpGraph, res_id::Int, value::Union{Int,Float64})
+"""
+    set_const_custom_res_params!(graph::VrpGraph, res_id::Int, value::T)
 
-# Set the constant parameters for a specific customized resource.
+Set the global (constant) parameters for a custom resource.
 
-# # Arguments
-# - `graph::VrpGraph`: graph to be considered
-# - `res_id::Int`: resource id to define parameters 
-# - `values::T`: struct containing all parameter values
-# """
+These parameters are not tied to any particular arc or vertex — they represent
+problem-wide data required by the BaPCod custom resource extension (e.g. an
+overall capacity or a global coefficient).
+
+`value` must be an instance of the constant parameter struct registered with
+[`@register_custom_res_param_types`](@ref).
+
+# Arguments
+- `graph::VrpGraph`: graph containing the custom resource.
+- `res_id::Int`: id of the custom resource (returned by `add_resource!`).
+- `value::T`: struct instance holding the global parameter values.
+
+See [Custom Resources](@ref) for the full workflow and an example.
+"""
 function set_const_custom_res_params!(graph::VrpGraph, res_id::Int, value::T) where {T}
     _check_id(res_id, 1, length(graph.resources))
     !graph.resources[res_id].is_custom &&

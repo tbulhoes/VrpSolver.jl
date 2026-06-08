@@ -99,7 +99,6 @@ add_permanent_ryanfoster_constraint!
 set_arc_resource_bounds!
 ```
 
-
 ```@docs
 enable_rank1_cuts!
 ```

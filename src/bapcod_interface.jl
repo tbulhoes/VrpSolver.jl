@@ -522,6 +522,31 @@ function wbcr_set_vertex_custom_res_params(
 
 function wbcr_set_const_custom_res_params(_::Ptr{Cvoid}, _::Integer, _::T) where {T} end
 
+"""
+    @register_custom_res_param_types(arc_type, vertex_type, const_type)
+
+Register the C-compatible struct types used by a custom resource and wire them
+to the corresponding BaPCod C functions.
+
+This macro must be called **once per module** (at the top level, outside any
+function) **before** `optimize!` is called. 
+
+# Arguments
+- `arc_type`: the Julia struct type for arc-level parameters. Used by
+  [`set_arc_custom_res_params!`](@ref).
+- `vertex_type`: the Julia struct type for vertex-level parameters. Used by
+  [`set_vertex_custom_res_params!`](@ref).
+- `const_type`: the Julia struct type for global (constant) parameters. Used by
+  [`set_const_custom_res_params!`](@ref).
+
+All three struct types must be laid out in memory exactly like a C struct. In
+practice this means every field must be a C-compatible primitive: `Cint`,
+`Cdouble`, `Cfloat`, `Clong`, etc.
+
+Pass `Nothing` for any argument when that parameter level is unused.
+
+See [Custom Resources](@ref) for the full workflow and an example.
+"""
 macro register_custom_res_param_types(arc_type, vertex_type, const_type)
     return esc(
         quote

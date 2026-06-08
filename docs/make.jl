@@ -8,6 +8,7 @@ makedocs(
         "Home"   => "index.md",
         #"Basic Model" => "basic_model.md",
         "Resources"   => "resources.md",
+        "Custom Resources" => "custom_resources.md",
         "Methods" => "methods.md",
         "Parameters" => "parameters.md",
         "Disabled functions" => "disabled_functions.md"
