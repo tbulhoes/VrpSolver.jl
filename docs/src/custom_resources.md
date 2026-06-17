@@ -4,7 +4,7 @@ Before implementing a custom resource, read the following paper — it describes
 the Meta-Solver interface, the required C++ functions, and the theoretical
 background behind the design choices:
 
-> [**Bucket Graph Meta-Solver for the Resource Constrained Shortest Path Problem**](https://inria.hal.science/hal-05486295)  
+> [**Bucket Graph Meta-Solver for the Resource Constrained Shortest Path Problem**](https://inria.hal.science/hal-05486295/file/Meta_Solver_HAL_v1.pdf)  
 > Ruslan Sadykov, Aurélien Froger, Eduardo Uchoa, Artur Pessoa, Teobaldo Bulhões, Daniel de Araujo  
 > *Preprint, 2026. HAL: hal-05486295*
 
@@ -12,9 +12,6 @@ A *custom resource* extends the pricing solver with new feasibility or cost logi
 implemented directly in C++, complementing the standard resource consumption mechanism. Instead of the standard
 lower-bound / upper-bound / consumption triple, a custom resource carries
 arbitrary user-defined parameters for each arc, each vertex, and globally.
-
-Custom resources are an **advanced feature**. Only one custom resource can
-be defined per [`VrpGraph`](@ref).
 
 The [CCVRP demo](https://github.com/artalvpes/VRPSolverDemos/tree/main/CCVRP)
 is a complete working example — it minimises the weighted sum of customer
@@ -114,8 +111,49 @@ end
   is free to embed several logical resources into a single custom resource —
   for example, by storing multiple state fields and combining their extension,
   domination, and concatenation logic inside the required functions.
+- **A single custom resource type per application.** A Julia application may add
+  several graphs, each with its own custom resource, but all of them share the
+  *same* custom resource type: the behavior is fixed by the C++ implementation
+  compiled into the BaPCod library the application links against (see Step 1). In
+  other words, a given BaPCod build provides exactly one kind of custom resource,
+  and every custom resource used in the application is an instance of that single
+  type.
 - **Cannot be `main` or `binary`.**
-- **BaPCod must be recompiled** every time the C++ files change.
+- **BaPCod/Meta-Solver must be recompiled** every time the C++ files change.
+
+## Recommended practice: keep the C++ files in your project
+
+Because a BaPCod/Meta-Solver build provides a single custom resource type (see the
+limitations above), switching between applications that use *different* custom
+resources requires rebuilding BaPCod/Meta-Solver with the right `rcsp_custom_res_impl.*`
+files. To avoid confusion when working with several applications alternately, it
+is a good practice to keep each application's C++ files **inside the application
+itself** and copy them into the Meta-Solver tree right before each run, recompiling
+the library on the spot. This guarantees the BaPCod/Meta-Solver build always matches the
+application you are about to run.
+
+The CCVRP demo follows this pattern. Its C++ files live in
+[`src/meta_solver/`](https://github.com/artalvpes/VRPSolverDemos/tree/main/CCVRP/src/meta_solver),
+and its [`run.jl`](https://github.com/artalvpes/VRPSolverDemos/blob/main/CCVRP/src/run.jl)
+copies them into the BaPCod/RCSP source tree and rebuilds the shared library
+before loading the model:
+
+```julia
+# Copy the custom resource implementation files to the BaPCod/Meta-Solver tree and compile it
+build_path = splitdir(splitdir(ENV["BAPCOD_RCSP_LIB"])[1])[1]
+bapcod_root = splitdir(build_path)[1]
+run(`cp -p src/meta_solver/rcsp_custom_res_impl.hpp $bapcod_root/Tools/rcsp/include_dev`)
+run(`cp -p src/meta_solver/rcsp_custom_res_impl.cpp $bapcod_root/Tools/rcsp/src`)
+base_dir = pwd()
+cd(build_path)
+run(`make -j4 bapcod-shared`)
+cd(base_dir)
+```
+
+The paths are derived from the `BAPCOD_RCSP_LIB` environment variable, so the
+same script works on any machine. You can adopt the same approach in your own
+application by placing your implementation in `src/meta_solver/` and reusing this
+snippet as is.
 
 ## API reference
 

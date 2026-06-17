@@ -543,7 +543,9 @@ All three struct types must be laid out in memory exactly like a C struct. In
 practice this means every field must be a C-compatible primitive: `Cint`,
 `Cdouble`, `Cfloat`, `Clong`, etc.
 
-Pass `Nothing` for any argument when that parameter level is unused.
+If a parameter level is unused, define an empty struct (e.g.
+`struct MyVertexParams end`) and pass its type — matching the empty C struct on
+the BaPCod/Meta-Solver side.
 
 See [Custom Resources](@ref) for the full workflow and an example.
 """
