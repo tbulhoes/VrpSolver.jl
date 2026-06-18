@@ -58,7 +58,7 @@ MipSolverMultiThread = 1       # number of threads for the MIP solver
 These options are valid for the underlying MIP solver, which is used to solve the pricing problems (if parameterized for that), the restricted master problem as a MIP in the corresponding heuristic, and the enumerated master (if the pricing functor supports subproblem solution enumeration). If the value of `MipSolverMultiThread` is equal to `0`, the number of threads is determined automatically by the underlying MIP solver. Setting `MipSolverMultiThread` to `1` makes the whole solution process use a single thread.
 
 ```
-MasterMipSolverRightHandSideZeroTol = --
+MasterMipSolverRightHandSideZeroTol = 1e-7
 ```
 Zero tolerance for the right-hand side values in the master MIP solver.
 
@@ -103,12 +103,12 @@ UseObjScalingFact = 0  # off
 If activated, scales the objective function by a constant factor to improve numerical stability.
 
 ```
-BapCodReducedCostTolerance = --
+BapCodReducedCostTolerance = 1e-6
 ```
 Tolerance for the reduced cost in the BapCod framework.
 
 ```
-BapCodIntegralityTolerance = --
+BapCodIntegralityTolerance = 1e-8
 ```
 Tolerance for integrality in the BapCod framework.
 
@@ -139,7 +139,7 @@ CutCleanupRatio = 0.66
 If the number of cuts reaches `CutCleanupThreshold`, all non-active cuts are removed from the restricted master LP. The `CutCleanupRatio` part of cuts (with largest violation) remain, and the others are removed.
 
 ```
-BapCodCutViolationTolerance = --
+BapCodCutViolationTolerance = 0.02
 ```
 Tolerance for cut violation in the BapCod framework.
 
