@@ -1,4 +1,4 @@
-## Parameters
+# Parameters
 
 This section lists the parameters available to the user. These parameters should be put to the configuration file. If a parameter is missing in the configuration file, the solver will use its default value, shown below.
 

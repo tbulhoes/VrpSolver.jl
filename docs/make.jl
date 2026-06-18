@@ -1,18 +1,16 @@
 using Documenter, VrpSolver, JuMP
 
-makedocs(
+makedocs(;
     modules = [VrpSolver],
-    format = Documenter.HTML(prettyurls = false),
+    format = Documenter.HTML(; prettyurls = false),
     sitename = "VRPSolver v2.0",
-    pages    = Any[
-        "Home"   => "index.md",
-        #"Basic Model" => "basic_model.md",
-        "Resources"   => "resources.md",
-        "Custom Resources" => "custom_resources.md",
+    pages = Any[
+        "Home" => "index.md",
         "Methods" => "methods.md",
         "Parameters" => "parameters.md",
-        "Disabled functions" => "disabled_functions.md"
-    ]   
-
+        "Custom resources" => "custom_resources.md",
+        "Disabled functions" => "disabled_functions.md",
+        "Legacy installation (Docker)" => "legacy_installation.md",
+    ],
 )
 

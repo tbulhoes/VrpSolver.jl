@@ -1,4 +1,4 @@
-
+# Methods
 
 ```@docs
 VrpGraph(::VrpModel, ::Array{Int,1}, ::Int, ::Int, ::Tuple{Int,Int})
