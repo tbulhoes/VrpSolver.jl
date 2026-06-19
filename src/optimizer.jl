@@ -37,6 +37,10 @@ function VrpOptimizer(
         "1",
     ],
 )
+    _has_overlapping_sets(user_model) && error(
+        "VRPSolver error: overlapping (packing/elementarity) sets are not yet supported"
+    )
+
     baptreedot = string(baptreedot)
     instance_name = string(instance_name)
     param_file = string(param_file)
