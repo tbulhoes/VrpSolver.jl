@@ -143,7 +143,7 @@ Also, move `bapdock.img` to `cplexdocker`.
 Create a text file named `Dockerfile_extract_cplex.txt` at the `cplexdocker` folder with this content:
 
 ```dockerfile
-FROM ubuntu
+FROM ubuntu:24.04
 RUN apt-get update ; apt-get install -y openjdk-8-jre
 COPY cplex_studio1210.linux-x86-64.bin /
 RUN (echo 2 ; echo ; echo 1 ; echo / ; echo y ; echo ; echo; echo; echo 2; echo ) | bash ./cplex_studio1210.linux-x86-64.bin
@@ -162,7 +162,7 @@ Copy the installed CPLEX to the `cplexdocker` folder:
 docker cp ubuntu_with_cplex:/cplex .
 ```
 
-Enter the folder `cplex/bin/x86-64_linux/` and rename `libcplex12100.so` to `libcplex12x.so`.
+Enter the folder `cplex/bin/x86-64_linux/` and create a copy of `libcplex12100.so` with the name `libcplex12x.so`.
 
 #### Installation of bapdock.img
 
@@ -271,7 +271,7 @@ docker run --rm -v /ABSOLUTE_PATH_TO_CVRP_APP:/CVRP bapdock /CVRP/src/run.jl /CV
 
 If you got the message `libcplex12x.so: cannot open shared object file: No such file or directory`, it means that the CPLEX directory was not successfully mounted. Please verify:
 
-1. you created a copy of `libcplex1210.so` (or `libcplex129.so`) named `libcplex12x.so`;
+1. you created a copy of `libcplex12100.so` (or `libcplex1290.so`) named `libcplex12x.so`;
 2. that the CPLEX version is 12.9 or 12.10;
 3. that the CPLEX 64-bit Linux distribution is used, even if you have MacOS or Windows.
 
