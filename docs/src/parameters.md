@@ -360,12 +360,12 @@ RCSPmaxNumOfEnumeratedSolutions = 5000000
 Maximum number of paths in the enumeration.
 
 ```
-RCSPmaxNumOfEnumSolutionsForMIP = 10000
+MaxNumOfEnumSolutionsForMIP = 10000
 ```
 Maximum total number of enumerated paths for MIP.
 
 ```
-RCSPmaxNumOfEnumSolsForEndOfNodeMIP = 10000
+MaxNumOfEnumSolsForEndOfNodeMIP = 10000
 ```
 Maximum total number of enumerated paths for MIP at the end of a node.
 

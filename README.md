@@ -47,6 +47,20 @@ On Windows, be sure that the `PATH` environment variable contains the folder wit
     export BAPCOD_RCSP_LIB=/path/to/lib/libbapcod-shared.so
     ```
 
+    The BaPCod shared library does not include the LP/MIP solver, so you also have to set the `BAPCOD_SOLVER_LIB`
+    environment variable with the absolute path to the shared library of the solver used to build BaPCod
+    (e.g. CPLEX). For example, on Linux:
+
+    ```
+    export BAPCOD_SOLVER_LIB=/opt/ibm/ILOG/CPLEX_Studio2211/cplex/bin/x86-64_linux/libcplex2211.so
+    ```
+
+    and on Mac OS (Apple Silicon):
+
+    ```
+    export BAPCOD_SOLVER_LIB=/Applications/CPLEX_Studio2211/cplex/bin/arm64_osx/libcplex2211.dylib
+    ```
+
 4. **Optional step**  
     If you want to use the [complete formulation](https://vrpsolver.math.u-bordeaux.fr/doc/methods.html#VrpSolver.get_complete_formulation) (the one that includes mapping constraints with λ variables for paths, and it's very useful for debugging), then you have to configurate a MIP solver via JuMP (e.g. you can install [CPLEX.jl](https://github.com/jump-dev/CPLEX.jl), which requires CPLEX version 12.10 or higher).  
 
