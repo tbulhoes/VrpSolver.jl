@@ -235,8 +235,8 @@ function _generate_pricing_networks(
             graph.id - 1,
             :DW_SP,
             length(graph.vertices),
-            nbPackSets,
             nbElemSets,
+            nbPackSets,
             nbCovSets,
         )
         wbcr_set_source(c_net_ptr, graph.source_id - 1)
