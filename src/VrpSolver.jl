@@ -6,22 +6,6 @@ const MOI = MathOptInterface
 
 import Base.show
 using Printf
-using Libdl
-
-# The BaPCod shared library does not link the LP/MIP solver: its symbols are resolved
-# from the host process. Hence, the solver library (e.g. libcplex2211.so) given by
-# BAPCOD_SOLVER_LIB must be loaded with global visibility before the BaPCod library.
-function __init__()
-    solver_lib = get(ENV, "BAPCOD_SOLVER_LIB", "")
-    if isempty(solver_lib)
-        @warn "The environment variable BAPCOD_SOLVER_LIB is not set. It should contain the " *
-              "absolute path to the LP/MIP solver shared library used by BaPCod " *
-              "(e.g. libcplex2211.so)."
-        return
-    end
-    Libdl.dlopen(solver_lib, Libdl.RTLD_NOW | Libdl.RTLD_GLOBAL)
-    return
-end
 
 include("bapcod_interface.jl")
 include("types.jl")
