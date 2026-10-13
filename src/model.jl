@@ -878,7 +878,7 @@ function _add_arc_to_elementarity_set(
 )
     _check_id(arc_id, 1, length(graph.arcs))
     _check_id(es_id, 1, length(graph.elem_sets))
-    (es_id in graph.arcs[arc_id].elems_sets) && error(
+    (es_id in graph.arcs[arc_id].elem_sets) && error(
         "VRPSolver error: an arc cannot be added more than once to an elementarity set"
     )
     push!(graph.arcs[arc_id].elem_sets, es_id)

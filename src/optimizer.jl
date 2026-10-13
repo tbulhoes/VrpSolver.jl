@@ -15,9 +15,9 @@ Build an optimizer for a VrpModel.
 function VrpOptimizer(
     user_model::VrpModel,
     param_file::AbstractString,
-    instance_name::AbstractString = "";
-    baptreedot::AbstractString = "BaPTree.dot",
-    fixed_params::Array{String,1} = [
+    instance_name::AbstractString="";
+    baptreedot::AbstractString="BaPTree.dot",
+    fixed_params::Array{String,1}=[
         "",
         "--MaxNbOfStagesInColGenProcedure",
         "3",
@@ -37,9 +37,9 @@ function VrpOptimizer(
         "1",
     ],
 )
-    _has_overlapping_sets(user_model) && error(
-        "VRPSolver error: overlapping (packing/elementarity) sets are not yet supported"
-    )
+    # _has_overlapping_sets(user_model) && error(
+    #     "VRPSolver error: overlapping (packing/elementarity) sets are not yet supported"
+    # )
 
     baptreedot = string(baptreedot)
     instance_name = string(instance_name)
@@ -220,7 +220,7 @@ function _generate_pricing_networks(
     GC.enable(false)
 
     c_register_subproblems(
-        bapcod_model, [(spid, :DW_SP) for spid in 0:(length(user_model.graphs) - 1)]
+        bapcod_model, [(spid, :DW_SP) for spid in 0:(length(user_model.graphs)-1)]
     )
 
     for graph in user_model.graphs
@@ -379,7 +379,7 @@ function _generate_pricing_networks(
             #arc variables
             for (user_var, coeff) in arc.vars
                 for colid in optimizer_cols_info.uservar_to_colids[user_var]
-                    if optimizer_cols_info.cols_problems[colid + 1][2] == graph.id - 1
+                    if optimizer_cols_info.cols_problems[colid+1][2] == graph.id - 1
                         wbcr_attach_bcvar_to_arc(
                             c_net_ptr, arc_bapcod_id, bapcod_model, colid, coeff
                         )
@@ -408,8 +408,8 @@ function _generate_pricing_networks(
     c_set_sp_multiplicities(
         bapcod_model,
         [
-            (spid, :DW_SP, user_model.graphs[spid + 1].multiplicity...) for
-            spid in 0:(length(user_model.graphs) - 1)
+            (spid, :DW_SP, user_model.graphs[spid+1].multiplicity...) for
+            spid in 0:(length(user_model.graphs)-1)
         ],
     )
 
@@ -526,7 +526,7 @@ function _build_optimizer_vars_and_constrs(
 
     user_form = user_model.formulation
     nconstrs = sum(
-        values(num_constraints(user_form; count_variable_in_set_constraints = false))
+        values(num_constraints(user_form; count_variable_in_set_constraints=false))
     )
     ncols = length(optimizer_cols_info.cols_problems)
     init_model!(bapcod_model_ptr, nconstrs, ncols)
@@ -540,9 +540,9 @@ function _build_optimizer_vars_and_constrs(
             push!(
                 optimizer_vars,
                 (
-                    Symbol(optimizer_cols_info.cols_names[colid + 1]),
+                    Symbol(optimizer_cols_info.cols_names[colid+1]),
                     colid,
-                    optimizer_cols_info.cols_problems[colid + 1]...,
+                    optimizer_cols_info.cols_problems[colid+1]...,
                 ),
             )
         end
@@ -594,8 +594,8 @@ function _build_optimizer_vars_and_constrs(
         terms = JuMP.constraint_object(constr_ref).func.terms
         for (user_var, coeff) in terms
             for id in optimizer_cols_info.uservar_to_colids[user_var]
-                push!(rows_id_vec[id + 1], constr_idx - 1)
-                push!(nonzeros_vec[id + 1], coeff)
+                push!(rows_id_vec[id+1], constr_idx - 1)
+                push!(nonzeros_vec[id+1], coeff)
             end
         end
     end
@@ -670,8 +670,8 @@ function _set_branching_priorities_in_optimizer(
                     push!(
                         cols_priority_infos,
                         (
-                            Symbol(optimizer_cols_info.cols_names[colid + 1]),
-                            optimizer_cols_info.cols_problems[colid + 1]...,
+                            Symbol(optimizer_cols_info.cols_names[colid+1]),
+                            optimizer_cols_info.cols_problems[colid+1]...,
                             priority,
                         ),
                     )
@@ -789,7 +789,7 @@ function _get_sp_var_value(
 
     var_value = 0.0
     for colid in optimizer_cols_info.uservar_to_colids[user_var]
-        if optimizer_cols_info.cols_problems[colid + 1][2] == subproblem_id
+        if optimizer_cols_info.cols_problems[colid+1][2] == subproblem_id
             var_value += c_getValueOfVar(bapcod_model, bapcod_spsol, colid)
         end
     end
@@ -806,7 +806,7 @@ function _get_sp_sols(optimizer::VrpOptimizer, bapcodsol)
     while status == 1
         subproblem_id = Int(c_getProblemFirstId(bapcodsol))
         mult = c_getMultiplicity(bapcodsol)
-        graph = optimizer.user_model.graphs[subproblem_id + 1]
+        graph = optimizer.user_model.graphs[subproblem_id+1]
         arcs_ids = [
             graph.arc_bapcod_id_to_id[arc_bap_id] for arc_bap_id in c_getArcs(bapcodsol)
         ]
@@ -835,7 +835,7 @@ function _get_sp_sols(optimizer::VrpOptimizer, bapcodsol)
     return spsols_in_sol
 end
 
-function _register_solutions(optimizer::VrpOptimizer, bapcodsol; from_model = true)
+function _register_solutions(optimizer::VrpOptimizer, bapcodsol; from_model=true)
     bapcod_model = optimizer.bapcod_model
     user_vars = all_variables(optimizer.user_model.formulation)
     optimizer_cols_info = optimizer.optimizer_cols_info
@@ -1033,8 +1033,7 @@ function get_path_arcs(optimizer::VrpOptimizer, path_id::Int)
         error("VrpSolver error: invalid path id")
 
     spsol = optimizer.spsols_in_sol[path_id]
-    graph = optimizer.user_model.graphs[spsol.graph_id]
-    return (graph, spsol.arc_seq)
+    return (spsol.graph, spsol.arc_seq)
 end
 
 """
@@ -1078,7 +1077,7 @@ function get_enum_paths(user_model::VrpModel, paramfile::String)
     optimizer = VrpOptimizer(
         user_model,
         paramfile;
-        fixed_params = ["", "--RCSPmaxNumOfLabelsInHeurEnumeration", "1000"],
+        fixed_params=["", "--RCSPmaxNumOfLabelsInHeurEnumeration", "1000"],
     )
     bcsol = get_enumerated_sp_sols(optimizer.bapcod_model)
     return _get_sp_sols(optimizer, bcsol)
@@ -1160,7 +1159,7 @@ println("Objective value: ", getobjectivevalue(complete_form))
 ```
 """
 function get_complete_formulation(
-    model::VrpModel, paramfile::String, relax_lambda::Bool = false
+    model::VrpModel, paramfile::String, relax_lambda::Bool=false
 )
     paths = get_enum_paths(model, paramfile)
 
