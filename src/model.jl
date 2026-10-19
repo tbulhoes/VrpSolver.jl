@@ -1460,12 +1460,13 @@ function _custom_res_cost_vars(user_model::VrpModel)
 end
 
 # checks if var appears in the linear expression expr (JuMP may give it as a constant, a variable
-# or an affine expression, depending on how it is written)
+# or an affine expression, depending on how it is written). Other expressions are not inspected,
+# since nonlinear constraints and branching expressions are rejected for all variables when the
+# optimizer is built.
 function _contains_var(expr, var::JuMP.VariableRef)
-    expr isa Number && return false
     expr isa JuMP.VariableRef && return expr == var
     expr isa JuMP.GenericAffExpr && return !iszero(get(expr.terms, var, 0.0))
-    error("VRPSolver error: unsupported expression type $(typeof(expr)), only linear expressions are supported")
+    return false
 end
 
 # checks the conditions that the variables associated to the custom resources must satisfy
@@ -1490,10 +1491,12 @@ function _check_resources_vars(user_model::VrpModel)
         end
     end
 
-    # all constraint types are inspected, since JuMP may store a linear constraint as a
+    # all linear constraint types are inspected, since JuMP may store a linear constraint as a
     # variable-in-set (e.g. fix(z, v)) or with an Interval set, depending on how it is written.
     # The lower bound (checked with the other mapped variables) and the integrality are allowed.
+    # Nonlinear and vector constraints are rejected later for all variables.
     for (func_type, set_type) in list_of_constraint_types(user_form)
+        func_type in (JuMP.VariableRef, JuMP.AffExpr) || continue
         if func_type == JuMP.VariableRef &&
             set_type in (MOI.GreaterThan{Float64}, MOI.Integer, MOI.ZeroOne)
             continue

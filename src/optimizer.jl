@@ -425,6 +425,11 @@ end
 function _extract_optimizer_cols_info(user_model::VrpModel)
     GC.enable(false)
 
+    # the legacy nonlinear interface (@NLobjective, @NLconstraint, ...) is stored apart from the
+    # model, e.g. objective_function() still returns the previous objective after @NLobjective
+    isnothing(JuMP.nonlinear_model(user_model.formulation)) || error(
+        "VRPSolver error: nonlinear objective functions and constraints are not supported.",
+    )
     _check_resources_vars(user_model)
     user_var_to_graphs = _extract_user_var_to_graphs(user_model)
     user_form = user_model.formulation
@@ -571,7 +576,9 @@ function _build_optimizer_vars_and_constrs(
         append!(constrs_refs, all_constraints(user_form, AffExpr, set_type))
     end
     nconstrs != length(constrs_refs) &&
-        error("VRPSolver error: nonlinear constraints are not supported.")
+        error(
+            "VRPSolver error: only linear constraints of the form expr <= rhs, expr >= rhs or expr == rhs are supported (nonlinear, interval and vector constraints are not).",
+        )
 
     for constr_ref in constrs_refs
         set = JuMP.constraint_object(constr_ref).set
@@ -750,12 +757,23 @@ function _set_branching_priorities_in_optimizer(
         for index in
             keys((exp_family isa Containers.SparseAxisArray) ? exp_family.data : exp_family)
             expr = exp_family[index]
-            if expr isa VariableRef
+            if expr isa Number # e.g. an entry written as 0 in a family of expressions
+                if expr != 0.0
+                    error(
+                        "VRPSolver error: constant part of branching expression must be equal to zero",
+                    )
+                end
+                colsids, coeffs = Int[], Float64[]
+            elseif expr isa VariableRef
                 colsids, coeffs = Int[], Float64[]
                 for colid in optimizer_cols_info.uservar_to_colids[expr]
                     push!(colsids, colid)
                     push!(coeffs, 1.0)
                 end
+            elseif !(expr isa GenericAffExpr)
+                error(
+                    "VRPSolver error: unsupported branching expression type $(typeof(expr)), only linear expressions are supported",
+                )
             else
                 if expr.constant != 0.0
                     error(
