@@ -250,10 +250,16 @@ function _generate_pricing_networks(
                     c_net_ptr, resource.id - 1, resource.is_disposable
                 )
             elseif resource.is_custom
+                # the cost column of the subproblem of this graph (the cost var has one column
+                # per graph whose custom resource uses it)
                 colids = get(
                     optimizer_cols_info.uservar_to_colids, resource.cost_var, Int[]
                 )
-                colid = isempty(colids) ? -1 : colids[1]
+                pos = findfirst(
+                    id -> optimizer_cols_info.cols_problems[id+1] == (:DW_SP, graph.id - 1),
+                    colids,
+                )
+                colid = isnothing(pos) ? -1 : colids[pos]
                 wbcr_new_custom_resource(c_net_ptr, resource.id - 1, bapcod_model, colid)
                 wbcr_set_const_custom_res_params(
                     c_net_ptr, resource.id - 1, resource.custom_data
@@ -679,9 +685,34 @@ function _set_branching_priorities_in_optimizer(
             end
         end
     end
+    # variables associated to the custom resources are never used for branching in the master
+    for user_var in _custom_res_cost_vars(user_model)
+        for colid in optimizer_cols_info.uservar_to_colids[user_var]
+            push!(
+                cols_priority_infos,
+                (
+                    Symbol(optimizer_cols_info.cols_names[colid+1]),
+                    optimizer_cols_info.cols_problems[colid+1]...,
+                    -1.0,
+                ),
+            )
+        end
+    end
     if !isempty(cols_priority_infos)
         c_vars_branching_priorities(bapcod_model_ptr, cols_priority_infos)
     end
+
+    # branching on subproblem variables is not used
+    c_vars_sp_branching_priorities(
+        bapcod_model_ptr,
+        [
+            (
+                Symbol(optimizer_cols_info.cols_names[colid+1]),
+                optimizer_cols_info.cols_problems[colid+1]...,
+                -1.0,
+            ) for colid in 0:(length(optimizer_cols_info.cols_names)-1)
+        ],
+    )
 
     ##########
     # now we add branching on expressions
@@ -1069,6 +1100,12 @@ function add_dynamic_constr!(
     rhs::Float64,
     constr_name::String,
 )
+    resources_vars = _custom_res_cost_vars(optimizer.user_model)
+    for var in vars
+        (var in resources_vars) && error(
+            "VRPSolver error: resource var $(var) cannot appear in dynamic constraint $(constr_name)",
+        )
+    end
     constr_info = DynamicConstrInfo(vars, coeffs, sense, rhs)
     push!(optimizer.callbacks[constr_name].to_add_constrs, constr_info)
 end

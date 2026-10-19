@@ -300,7 +300,7 @@ Add a resource to the VrpGraph `graph`.
 - `binary::Bool`: indicates that the resource is binary, i.e., its accumulated consumption can only be `0` or `1`.
 - `disposable::Bool`: indicates that the resource is disposable or non-disposable.
 - `custom::Bool`: marks the resource as a custom resource. See [Custom Resources](@ref) for the full workflow.
-- `cost_var`: a JuMP `VariableRef` whose column is passed to the BaPCod custom resource extension as the associated cost column. Only meaningful when `custom=true`.
+- `cost_var`: a JuMP `VariableRef` whose column is passed to the BaPCod custom resource extension as the associated cost column. Only allowed when `custom=true`. The variable must not be mapped to arcs, must have coefficient 1 in the objective function, must not appear in any constraint (including dynamic constraints) and must not be used for branching (no positive branching priority and no branching expression containing it). VRPSolver never branches on it.
 - `step_size::Float64`: only for main resources, this advanced parameter is used for determining the resource consumption intervals that define each bucket on the labeling algorithm during the pricing.
 if step_size is not given, it is determined automatically for main resources, based on the parameter `RCSPnumberOfBucketsPerVertex`.
 
@@ -330,6 +330,9 @@ function add_resource!(
     custom &&
         (count(r -> r.is_custom, graph.resources) > 0) &&
         error("VRPSolver error: only one custom resource can be defined")
+    !custom &&
+        !isnothing(cost_var) &&
+        error("VRPSolver error: cost_var can only be given for a custom resource")
 
     res_id = length(graph.resources) + 1
     push!(
@@ -1448,17 +1451,89 @@ function add_strongkpath_cut_separator!(
     push!(model.strongkpath_cuts_info, CapacityCutInfo(id_demands, Int(capacity), -1))
 end
 
-# checks if a resource var is mapped to an arc
-function _check_resources_vars(user_model::VrpModel)
-    resources_vars = Set(
+# variables associated to the custom resources (cost_var)
+function _custom_res_cost_vars(user_model::VrpModel)
+    return Set{JuMP.VariableRef}(
         res.cost_var for graph in user_model.graphs for
-        res in graph.resources if !isnothing(res.cost_var)
+        res in graph.resources if res.is_custom && !isnothing(res.cost_var)
     )
+end
+
+# checks if var appears in the linear expression expr (JuMP may give it as a constant, a variable
+# or an affine expression, depending on how it is written)
+function _contains_var(expr, var::JuMP.VariableRef)
+    expr isa Number && return false
+    expr isa JuMP.VariableRef && return expr == var
+    expr isa JuMP.GenericAffExpr && return !iszero(get(expr.terms, var, 0.0))
+    error("VRPSolver error: unsupported expression type $(typeof(expr)), only linear expressions are supported")
+end
+
+# checks the conditions that the variables associated to the custom resources must satisfy
+function _check_resources_vars(user_model::VrpModel)
+    resources_vars = _custom_res_cost_vars(user_model)
+    isempty(resources_vars) && return nothing
     for graph in user_model.graphs
         for arc in graph.arcs
             if any(var_and_coeff -> (var_and_coeff[1] in resources_vars), arc.vars)
                 error("VRPSolver error: resource var cannot be mapped to arcs")
             end
+        end
+    end
+
+    user_form = user_model.formulation
+    obj_terms = get_obj_terms(user_form)
+    for var in resources_vars
+        if get(obj_terms, var, 0.0) != 1.0
+            error(
+                "VRPSolver error: resource var $(var) must have coefficient 1 in the objective function",
+            )
+        end
+    end
+
+    # all constraint types are inspected, since JuMP may store a linear constraint as a
+    # variable-in-set (e.g. fix(z, v)) or with an Interval set, depending on how it is written.
+    # The lower bound (checked with the other mapped variables) and the integrality are allowed.
+    for (func_type, set_type) in list_of_constraint_types(user_form)
+        if func_type == JuMP.VariableRef &&
+            set_type in (MOI.GreaterThan{Float64}, MOI.Integer, MOI.ZeroOne)
+            continue
+        end
+        for constr_ref in all_constraints(user_form, func_type, set_type)
+            func = JuMP.constraint_object(constr_ref).func
+            for var in resources_vars
+                if _contains_var(func, var)
+                    error(
+                        "VRPSolver error: resource var $(var) cannot appear in constraint " *
+                        "$(constr_ref) (the only constraint allowed on it is $(var) >= 0)",
+                    )
+                end
+            end
+        end
+    end
+
+    for var in resources_vars
+        (container_name, _) = split_var_name(var)
+        if get(user_model.branching_priorities, container_name, 0) > 0
+            error(
+                "VRPSolver error: resource var $(var) cannot have a positive branching priority",
+            )
+        end
+    end
+    for (exp_family, exp_name, _) in user_model.branching_exp_families
+        exps = (exp_family isa JuMP.Containers.SparseAxisArray) ? values(exp_family.data) : exp_family
+        for expr in exps, var in resources_vars
+            if _contains_var(expr, var)
+                error(
+                    "VRPSolver error: resource var $(var) cannot appear in the branching expressions $(exp_name)",
+                )
+            end
+        end
+    end
+    for (expr, exp_name, _) in user_model.branching_exps, var in resources_vars
+        if _contains_var(expr, var)
+            error(
+                "VRPSolver error: resource var $(var) cannot appear in the branching expression $(exp_name)",
+            )
         end
     end
     return nothing

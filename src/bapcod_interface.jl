@@ -366,6 +366,40 @@ function c_vars_branching_priorities(
     end
 end
 
+function set_var_priority_in_sp!(
+    modelptr::Ptr{Cvoid},
+    varname::Symbol,
+    sp_bctype::Integer,
+    sp_bcid::Vector{Cint},
+    priority::Cdouble,
+)
+    @bcm_ccall(
+        "setVarPriorityInSp",
+        Cint,
+        (Ptr{Cvoid}, Ptr{Cchar}, Cint, Ptr{Cint}, Cdouble),
+        modelptr,
+        varname,
+        sp_bctype,
+        sp_bcid,
+        priority
+    )
+end
+
+function c_vars_sp_branching_priorities(
+    modelptr::Ptr{Cvoid}, p::Vector{Tuple{Symbol,Symbol,Int,Float64}}
+)
+    sp_bcid = Array{Cint,1}(undef, 8)
+    for (varname, sp_type, sp_id, priority) in p
+        from_index_to_BaPCodindex(sp_id, sp_bcid)
+        sp_bctype = sptype_to_int(sp_type)
+        status = set_var_priority_in_sp!(
+            modelptr, varname, sp_bctype, sp_bcid, Cdouble(priority)
+        )
+        (status != 1) &&
+            error("Cannot set subproblem branching priority on variables named $varname.")
+    end
+end
+
 function wbcr_new(
     c_model::Ptr{Cvoid},
     sp_bctype::Integer,
