@@ -665,6 +665,25 @@ function _has_integer_objective(
     return true
 end
 
+# BaPCod identifies an expression of a family by a multi-index of at most 8 nonnegative integers
+# (a negative value ends the multi-index on the BaPCod side, see arrayToMultiIndex)
+function _check_branching_exp_index(name::String, index)
+    ints = try
+        toArray(index)
+    catch
+        nothing
+    end
+    if isnothing(ints) || any(<(0), ints) || length(ints) > 8
+        idx = (index isa Containers.DenseAxisArrayKey) ? index.I : index
+        idx = (idx isa Tuple && length(idx) == 1) ? idx[1] : idx
+        error(
+            "VRPSolver error: invalid index $(repr(idx)) in the branching expression family $(name). " *
+            "Indices must be nonnegative integers or tuples of nonnegative integers (at most 8 integers in total), " *
+            "e.g. e[i in 1:n], e[i in 1:n, j in 1:m] or e[(i, j) in E].",
+        )
+    end
+end
+
 function _set_branching_priorities_in_optimizer(
     user_model::VrpModel, bapcod_model_ptr, optimizer_cols_info::OptimizerColsInfo
 )
@@ -756,6 +775,7 @@ function _set_branching_priorities_in_optimizer(
         )
         for index in
             keys((exp_family isa Containers.SparseAxisArray) ? exp_family.data : exp_family)
+            _check_branching_exp_index(name, index)
             expr = exp_family[index]
             if expr isa Number # e.g. an entry written as 0 in a family of expressions
                 if expr != 0.0
