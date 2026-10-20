@@ -1,9 +1,30 @@
 ## ccall redef
+
+# The BaPCod/RCSP library is given by the environment variable BAPCOD_RCSP_LIB. Its functions are
+# called through pointers obtained with Libdl, since a library name computed at run time (e.g.
+# get(ENV, ...)) is not accepted by ccall since Julia 1.13.
+const _bapcod_lib_path = Ref("")
+const _bapcod_lib_handle = Ref{Ptr{Cvoid}}(C_NULL)
+const _bapcod_syms = Dict{String,Ptr{Cvoid}}()
+
+function _bapcod_sym(name::String)
+    path = get(ENV, "BAPCOD_RCSP_LIB", "")
+    if path != _bapcod_lib_path[] # first call or library changed
+        isempty(path) && error(
+            "VRPSolver error: please set the environment variable BAPCOD_RCSP_LIB to the complete file path of the BaPCod/RCSP library.",
+        )
+        _bapcod_lib_handle[] = Libdl.dlopen(path)
+        _bapcod_lib_path[] = path
+        empty!(_bapcod_syms)
+    end
+    return get!(() -> Libdl.dlsym(_bapcod_lib_handle[], name), _bapcod_syms, name)
+end
+
 macro bcm_ccall(func, args...)
     f = "bcInterfaceModel_$(func)"
     args = map(esc, args)
     return quote
-        ccall(($f, get(ENV, "BAPCOD_RCSP_LIB", "")), $(args...))
+        ccall(_bapcod_sym($f), $(args...))
     end
 end
 
@@ -11,7 +32,7 @@ macro bcr_ccall(func, args...)
     f = "bcRCSP_$(func)"
     args = map(esc, args)
     return quote
-        ccall(($f, get(ENV, "BAPCOD_RCSP_LIB", "")), $(args...))
+        ccall(_bapcod_sym($f), $(args...))
     end
 end
 
@@ -19,7 +40,7 @@ macro bcs_ccall(func, args...)
     f = "bcInterfaceSolve_$(func)"
     args = map(esc, args)
     return quote
-        ccall(($f, get(ENV, "BAPCOD_RCSP_LIB", "")), $(args...))
+        ccall(_bapcod_sym($f), $(args...))
     end
 end
 
@@ -27,7 +48,7 @@ macro bcsol_ccall(func, args...)
     f = "bcSolution_$(func)"
     args = map(esc, args)
     return quote
-        ccall(($f, get(ENV, "BAPCOD_RCSP_LIB", "")), $(args...))
+        ccall(_bapcod_sym($f), $(args...))
     end
 end
 
@@ -590,7 +611,7 @@ macro register_custom_res_param_types(arc_type, vertex_type, const_type)
                 c_net::Ptr{Cvoid}, arc_id::Integer, res_id::Integer, params::$(arc_type)
             )
                 ccall(
-                    ("bcRCSP_setEdgeCustomResParams", get(ENV, "BAPCOD_RCSP_LIB", "")),
+                    VrpSolver._bapcod_sym("bcRCSP_setEdgeCustomResParams"),
                     Cint,
                     (Ptr{Cvoid}, Cint, Cint, $(arc_type)),
                     c_net,
@@ -604,7 +625,7 @@ macro register_custom_res_param_types(arc_type, vertex_type, const_type)
                 c_net::Ptr{Cvoid}, n_id::Integer, res_id::Integer, params::$(vertex_type)
             )
                 ccall(
-                    ("bcRCSP_setVertexCustomResParams", get(ENV, "BAPCOD_RCSP_LIB", "")),
+                    VrpSolver._bapcod_sym("bcRCSP_setVertexCustomResParams"),
                     Cint,
                     (Ptr{Cvoid}, Cint, Cint, $(vertex_type)),
                     c_net,
@@ -618,7 +639,7 @@ macro register_custom_res_param_types(arc_type, vertex_type, const_type)
                 c_net::Ptr{Cvoid}, res_id::Integer, params::$(const_type)
             )
                 ccall(
-                    ("bcRCSP_setConstCustomResParams", get(ENV, "BAPCOD_RCSP_LIB", "")),
+                    VrpSolver._bapcod_sym("bcRCSP_setConstCustomResParams"),
                     Cint,
                     (Ptr{Cvoid}, Cint, $(const_type)),
                     c_net,

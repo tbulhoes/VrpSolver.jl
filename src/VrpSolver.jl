@@ -6,6 +6,7 @@ const MOI = MathOptInterface
 
 import Base.show
 using Printf
+using Libdl
 
 include("bapcod_interface.jl")
 include("types.jl")
