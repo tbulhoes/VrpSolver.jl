@@ -894,6 +894,18 @@ function new_sol!()
     @bcsol_ccall("new", Ptr{Cvoid}, ())
 end
 
+function delete_sol!(solution::Ptr{Cvoid})
+    @bcsol_ccall("delete", Cvoid, (Ptr{Cvoid},), solution)
+end
+
+function delete_model!(mptr::Ptr{Cvoid})
+    @bcm_ccall("delete", Cvoid, (Ptr{Cvoid},), mptr)
+end
+
+function wbcr_delete(c_net::Ptr{Cvoid})
+    @bcr_ccall("delete", Cvoid, (Ptr{Cvoid},), c_net)
+end
+
 function c_getValueOfVar(mptr::Ptr{Cvoid}, solution::Ptr{Cvoid}, colid::Int)
     value = Ref{Cdouble}(0.0)
     @bcsol_ccall(

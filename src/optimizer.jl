@@ -61,7 +61,7 @@ function VrpOptimizer(
     _build_optimizer_vars_and_constrs(user_model, bapcod_model_ptr, optimizer_cols_info)
 
     #creating bapcod networks
-    _generate_pricing_networks(user_model, bapcod_model_ptr, optimizer_cols_info)
+    bapcod_nets = _generate_pricing_networks(user_model, bapcod_model_ptr, optimizer_cols_info)
 
     #branching priorities
     _set_branching_priorities_in_optimizer(
@@ -106,10 +106,32 @@ function VrpOptimizer(
         Dict(),
         baptreedot,
         optimizer_cols_info,
+        bapcod_nets,
     )
     user_model.optimizer = optimizer
+    # frees the BaPCod model of an optimizer that is never optimized (optimize! frees it otherwise)
+    finalizer(_free_bapcod_model!, optimizer)
 
     return optimizer
+end
+
+# frees the BaPCod model and the pricing networks of the optimizer. The solution and the statistics
+# are kept in the optimizer, so they can still be queried.
+function _free_bapcod_model!(optimizer::VrpOptimizer)
+    optimizer.bapcod_model == C_NULL && return nothing
+    for c_net in optimizer.bapcod_nets
+        wbcr_delete(c_net)
+    end
+    empty!(optimizer.bapcod_nets)
+    delete_model!(optimizer.bapcod_model)
+    optimizer.bapcod_model = C_NULL
+    return nothing
+end
+
+function _check_bapcod_model(optimizer::VrpOptimizer)
+    optimizer.bapcod_model == C_NULL && error(
+        "VRPSolver error: a VrpOptimizer can only be optimized once (its BaPCod model is freed by optimize!). Create a new VrpOptimizer.",
+    )
 end
 
 """
@@ -119,6 +141,9 @@ Solve a VRPSolver problem.
 
 It returns a pair with the status of the execution and a flag indicating whether a solution was found, respectively.
 
+The memory used by BaPCod is freed at the end of the execution, so `optimize!` can be called only once for a given
+`VrpOptimizer` (create a new one to solve the model again). The solution and the statistics remain available.
+
 # Example
 ```julia
 # let model be a VrpModel
@@ -127,6 +152,7 @@ optimizer = VrpOptimizer(model, "path_to_config/config.cfg")
 ```
 """
 function JuMP.optimize!(optimizer::VrpOptimizer)
+    _check_bapcod_model(optimizer)
     # Save access to the optimizer in the JuMP model to allow for getting variable values without
     # having to pass it as an argument.
     optimizer.user_model.formulation.ext[:optimizer] = optimizer
@@ -142,6 +168,15 @@ function JuMP.optimize!(optimizer::VrpOptimizer)
 
     sol_ptr = new_sol!()
     status = c_optimize(optimizer.bapcod_model, sol_ptr)
+    try
+        return _get_solution_and_statistics(optimizer, status, sol_ptr)
+    finally
+        delete_sol!(sol_ptr)
+        _free_bapcod_model!(optimizer)
+    end
+end
+
+function _get_solution_and_statistics(optimizer::VrpOptimizer, status, sol_ptr)
     has_solution = _register_solutions(optimizer, sol_ptr)
 
     println(
@@ -219,6 +254,8 @@ function _generate_pricing_networks(
 
     GC.enable(false)
 
+    c_nets = Ptr{Cvoid}[] # pricing networks, in the order of the graphs
+
     c_register_subproblems(
         bapcod_model, [(spid, :DW_SP) for spid in 0:(length(user_model.graphs)-1)]
     )
@@ -242,7 +279,7 @@ function _generate_pricing_networks(
         wbcr_set_source(c_net_ptr, graph.source_id - 1)
         wbcr_set_sink(c_net_ptr, graph.sink_id - 1)
 
-        graph.net = c_net_ptr
+        push!(c_nets, c_net_ptr)
         #resources and vertices
         for resource in graph.resources
             if resource.is_binary
@@ -420,6 +457,7 @@ function _generate_pricing_networks(
     )
 
     GC.enable(true)
+    return c_nets
 end
 
 function _extract_optimizer_cols_info(user_model::VrpModel)
@@ -945,6 +983,7 @@ Set an upper bound (primal bound) for the execution.
 
 """
 function set_cutoff!(optimizer::VrpOptimizer, ub::Float64)
+    _check_bapcod_model(optimizer)
     set_obj_ub!(optimizer.bapcod_model, ub)
     optimizer.initUB = ub
     absolute_ub = abs(ub)
@@ -1155,7 +1194,10 @@ function get_enum_paths(user_model::VrpModel, paramfile::String)
         fixed_params=["", "--RCSPmaxNumOfLabelsInHeurEnumeration", "1000"],
     )
     bcsol = get_enumerated_sp_sols(optimizer.bapcod_model)
-    return _get_sp_sols(optimizer, bcsol)
+    paths = _get_sp_sols(optimizer, bcsol)
+    delete_sol!(bcsol)
+    _free_bapcod_model!(optimizer)
+    return paths
 end
 
 """
