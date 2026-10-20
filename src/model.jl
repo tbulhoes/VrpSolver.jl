@@ -167,7 +167,6 @@ function VrpGraph(
         cycle_problem,
         Dict{Tuple{Int,Int},Tuple{Float64,Float64}}(),
         Dict{Tuple{Int,Int},Tuple{Float64,Float64}}(),
-        Dict{Int,Int}(),
         nothing,
         Array{Array{Int,1},1}[],
         standalone_filename,

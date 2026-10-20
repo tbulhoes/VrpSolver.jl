@@ -61,7 +61,9 @@ function VrpOptimizer(
     _build_optimizer_vars_and_constrs(user_model, bapcod_model_ptr, optimizer_cols_info)
 
     #creating bapcod networks
-    bapcod_nets = _generate_pricing_networks(user_model, bapcod_model_ptr, optimizer_cols_info)
+    (bapcod_nets, arc_bapcod_id_to_id) = _generate_pricing_networks(
+        user_model, bapcod_model_ptr, optimizer_cols_info
+    )
 
     #branching priorities
     _set_branching_priorities_in_optimizer(
@@ -107,8 +109,8 @@ function VrpOptimizer(
         baptreedot,
         optimizer_cols_info,
         bapcod_nets,
+        arc_bapcod_id_to_id,
     )
-    user_model.optimizer = optimizer
     # frees the BaPCod model of an optimizer that is never optimized (optimize! frees it otherwise)
     finalizer(_free_bapcod_model!, optimizer)
 
@@ -167,7 +169,13 @@ function JuMP.optimize!(optimizer::VrpOptimizer)
     end
 
     sol_ptr = new_sol!()
-    status = c_optimize(optimizer.bapcod_model, sol_ptr)
+    # the user callbacks access the optimizer through the model (e.g. add_dynamic_constr!(model.optimizer, ...))
+    optimizer.user_model.optimizer = optimizer
+    status = try
+        c_optimize(optimizer.bapcod_model, sol_ptr)
+    finally
+        optimizer.user_model.optimizer = nothing
+    end
     try
         return _get_solution_and_statistics(optimizer, status, sol_ptr)
     finally
@@ -255,6 +263,7 @@ function _generate_pricing_networks(
     GC.enable(false)
 
     c_nets = Ptr{Cvoid}[] # pricing networks, in the order of the graphs
+    arc_maps = Dict{Int,Int}[] # for each graph, BaPCod arc id -> VrpGraph arc id
 
     c_register_subproblems(
         bapcod_model, [(spid, :DW_SP) for spid in 0:(length(user_model.graphs)-1)]
@@ -280,6 +289,8 @@ function _generate_pricing_networks(
         wbcr_set_sink(c_net_ptr, graph.sink_id - 1)
 
         push!(c_nets, c_net_ptr)
+        arc_map = Dict{Int,Int}()
+        push!(arc_maps, arc_map)
         #resources and vertices
         for resource in graph.resources
             if resource.is_binary
@@ -373,7 +384,7 @@ function _generate_pricing_networks(
                 continue
             end
             arc_bapcod_id = wbcr_new_arc(c_net_ptr, arc.tail - 1, arc.head - 1, 0.0)
-            graph.arc_bapcod_id_to_id[arc_bapcod_id] = arc.id
+            arc_map[arc_bapcod_id] = arc.id
             for resource in graph.resources
                 if resource.is_binary
                     wbcr_set_arc_special_res_params(
@@ -457,7 +468,7 @@ function _generate_pricing_networks(
     )
 
     GC.enable(true)
-    return c_nets
+    return (c_nets, arc_maps)
 end
 
 function _extract_optimizer_cols_info(user_model::VrpModel)
@@ -915,7 +926,8 @@ function _get_sp_sols(optimizer::VrpOptimizer, bapcodsol)
         mult = c_getMultiplicity(bapcodsol)
         graph = optimizer.user_model.graphs[subproblem_id+1]
         arcs_ids = [
-            graph.arc_bapcod_id_to_id[arc_bap_id] for arc_bap_id in c_getArcs(bapcodsol)
+            optimizer.arc_bapcod_id_to_id[subproblem_id+1][arc_bap_id] for
+            arc_bap_id in c_getArcs(bapcodsol)
         ]
 
         spsol = SpSol(

@@ -49,7 +49,6 @@ mutable struct VrpGraph
     cycle_problem::Bool # true when source=sink for the user (vertices[sink_id] is only an internal vertex)
     res_bounds_vertex::Dict{Tuple{Int,Int},Tuple{Float64,Float64}} # stores all intervals defined by the user on vertices
     res_bounds_arc::Dict{Tuple{Int,Int},Tuple{Float64,Float64}} # stores all intervals defined by the user on arcs
-    arc_bapcod_id_to_id::Dict{Int,Int}
     es_dist_matrix
     elem_sets::Array{Array{Int,1},1}
     standalone_filename::String
@@ -127,4 +126,5 @@ mutable struct VrpOptimizer
     baptreedot_file::String
     optimizer_cols_info::OptimizerColsInfo
     bapcod_nets::Vector{Ptr{Cvoid}} # pricing networks of this optimizer, freed with the model
+    arc_bapcod_id_to_id::Vector{Dict{Int,Int}} # for each graph, BaPCod arc id -> VrpGraph arc id
 end
