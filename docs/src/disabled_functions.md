@@ -8,10 +8,8 @@ These features are planned to be reintroduced in future releases. If your curren
 
 The following functions are currently unavailable in the latest version:
 
-* `enable_packset_ryanfoster_branching!`
 * `enable_resource_consumption_branching!`
 * `add_strongkpath_cut_separator!`
-* `add_permanent_ryanfoster_constraint!`
 
 ---
 

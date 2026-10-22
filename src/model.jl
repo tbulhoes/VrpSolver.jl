@@ -1166,10 +1166,6 @@ end
 """
     enable_packset_ryanfoster_branching!(model::VrpModel, priority::Int)
 
-!!! danger "Temporarily Disabled"
-    This function is currently disabled and will be restored in a future release. 
-    To use this feature now, please refer to the legacy Docker installation.
-
 Enable the Ryan and Foster branching.
 Given two distinct packing sets ``S`` and ``S'`` in ``\\mathcal{P}``, let ``P(S,S') \\subseteq P`` be the subset of the paths that contain arcs in both ``S`` and ``S'``.
 The branching is over the value of ``\\sum_{p\\in P(S,S')} \\lambda_p``, either 0 or 1.
@@ -1187,20 +1183,11 @@ enable_packset_ryanfoster_branching!(model, 2)
 ```
 """
 function enable_packset_ryanfoster_branching!(model::VrpModel, priority::Int)
-    error(
-        "VRPSolver error: This function is currently disabled and will be restored in a future release." *
-        " To use this feature now, please refer to the legacy Docker installation",
-    )
     model.branching_priorities["_ryanfoster_branching_"] = priority
 end
 
 """
     add_permanent_ryanfoster_constraint!(model::VrpModel, firstPackSetId::Integer, secondPackSetId::Integer, together::Bool)
-
-
-!!! danger "Temporarily Disabled"
-    This function is currently disabled and will be restored in a future release. 
-    To use this feature now, please refer to the legacy Docker installation.
 
 Set a permanent Ryan and Foster constraint for a pair of packing sets.
 
@@ -1220,10 +1207,6 @@ add_permanent_ryanfoster_constraint!(model, 3, 4, false)
 function add_permanent_ryanfoster_constraint!(
     model::VrpModel, firstPackSetId::Integer, secondPackSetId::Integer, together::Bool
 )
-    error(
-        "VRPSolver error: This function is currently disabled and will be restored in a future release." *
-        " To use this feature now, please refer to the legacy Docker installation",
-    )
     _check_id(firstPackSetId, 1, length(model.packing_sets))
     _check_id(secondPackSetId, 1, length(model.packing_sets))
     (firstPackSetId == secondPackSetId) && error(
