@@ -48,13 +48,22 @@ function VrpOptimizer(
     optimizer_cols_info = _extract_optimizer_cols_info(user_model)
     integer_objective = _has_integer_objective(user_model, optimizer_cols_info)
 
+    params = copy(fixed_params)
+    if user_model.use_rank1_cuts && user_model.rank1_cuts_memory !== nothing
+        push!(
+            params,
+            "--RCSPrankOneCutsMemoryType",
+            string(RANK1_CUTS_MEMORY_TYPES[user_model.rank1_cuts_memory]),
+        )
+    end
+
     bapcod_model_ptr = new!(
         param_file,
         true,
         integer_objective,
         false, # CHECK
-        length(fixed_params),
-        fixed_params,
+        length(params),
+        params,
     )
 
     #creating optimizer formulation
