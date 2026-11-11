@@ -71,7 +71,6 @@ mutable struct VrpModel
     branching_exp_families::Array{Any,1}
     branching_exps::Array{Any,1}
     use_rank1_cuts::Bool
-    rank1_cuts_memory::Union{Symbol,Nothing} # memory type of the rank-1 cuts, nothing to use the parameter file
     optimizer::Any
     callbacks::Dict{String,Function}
     cap_cuts_info::Array{CapacityCutInfo,1}

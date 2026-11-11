@@ -19,7 +19,6 @@ function VrpModel()
         Any[],
         true,
         nothing,
-        nothing,
         Dict{String,Any}(),
         CapacityCutInfo[],
         CapacityCutInfo[],
@@ -63,11 +62,8 @@ function _has_custom_resource(model::VrpModel)
     return false
 end
 
-# values of the BaPCod parameter RCSPrankOneCutsMemoryType
-const RANK1_CUTS_MEMORY_TYPES = (automatic=0, arc=1, vertex=2, full=3)
-
 """
-    enable_rank1_cuts!(model::VrpModel; memory::Union{Symbol,Nothing} = nothing)
+    enable_rank1_cuts!(model::VrpModel)
 
 Enable use of *limited memory rank-1* cuts during the execution.
 
@@ -75,25 +71,16 @@ These cuts depends of the collection of packing sets (whether in arcs or vertice
 Therefore, it will not be applied if you do not define packing sets.
 These cuts are potentially very strong, but each added cut can make the pricing subproblems harder.
 
-# Optional arguments
-- `memory::Symbol`: type of memory of the cuts, which overrides the parameter `RCSPrankOneCutsMemoryType` of the
-  parameter file. It can be `:arc` (arc memory), `:vertex` (vertex memory), `:full` (full memory, i.e., the cuts are
-  not weakened by a limited memory) or `:automatic` (the type is chosen at the root node). If it is not given, the
-  parameter file decides. Limited memory makes the pricing easier and works well when the packing sets have some
-  locality, as the customers in vehicle routing. Without such locality (in scheduling, for instance), the columns
-  can often avoid the memory of a cut without increasing their cost, and full memory may give much better bounds.
-  Arc memory may also use much more memory than the other types on large graphs.
+The type of memory of the cuts is given by the parameter `RCSPrankOneCutsMemoryType` of the parameter file:
+0 (automatic), 1 (arc memory), 2 (vertex memory, the default) or 3 (full memory, i.e., the cuts are not weakened
+by a limited memory). Limited memory makes the pricing easier and works well when the packing sets have some
+locality, as the customers in vehicle routing. Without such locality (in scheduling, for instance), the columns
+can often avoid the memory of a cut without increasing their cost, and full memory may give much better bounds.
+Arc memory may also use much more memory than the other types on large graphs.
 
 """
-function enable_rank1_cuts!(model::VrpModel; memory::Union{Symbol,Nothing}=nothing)
-    if memory !== nothing && !haskey(RANK1_CUTS_MEMORY_TYPES, memory)
-        error(
-            "VRPSolver error: invalid memory type :$memory for rank-1 cuts, it must be one of " *
-            join((":$k" for k in keys(RANK1_CUTS_MEMORY_TYPES)), ", "),
-        )
-    end
+function enable_rank1_cuts!(model::VrpModel)
     model.use_rank1_cuts = true
-    model.rank1_cuts_memory = memory
 end
 
 """

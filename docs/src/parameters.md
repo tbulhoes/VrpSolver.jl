@@ -393,7 +393,7 @@ Limited-memory rank-1 cuts parameter: maximum number of cuts per round.
 RCSPrankOneCutsMemoryType = 2
 ```
 Limited-memory rank-1 cuts parameter: memory type (0 = automatic, 1 = arc memory, 2 = vertex memory, 3 = full memory).
-It is overridden by the `memory` argument of `enable_rank1_cuts!`.
+See `enable_rank1_cuts!` for the choice of the memory type.
 
 ```
 RCSPrankOneCutsLSnumIterations = 1000
